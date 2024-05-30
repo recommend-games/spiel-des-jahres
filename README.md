@@ -8,9 +8,9 @@
 
 ---
 
-**Documentation**: [https://MarkusShepherd.github.io/spiel-des-jahres](https://MarkusShepherd.github.io/spiel-des-jahres)
+**Documentation**: [https://recommend-games.github.io/spiel-des-jahres](https://recommend-games.github.io/spiel-des-jahres)
 
-**Source Code**: [https://github.com/MarkusShepherd/spiel-des-jahres](https://github.com/MarkusShepherd/spiel-des-jahres)
+**Source Code**: [https://github.com/recommend-games/spiel-des-jahres](https://github.com/recommend-games/spiel-des-jahres)
 
 **PyPI**: [https://pypi.org/project/spiel-des-jahres/](https://pypi.org/project/spiel-des-jahres/)
 
@@ -50,17 +50,17 @@ pytest
 
 ### Documentation
 
-The documentation is automatically generated from the content of the [docs directory](https://github.com/MarkusShepherd/spiel-des-jahres/tree/master/docs) and from the docstrings
+The documentation is automatically generated from the content of the [docs directory](https://github.com/recommend-games/spiel-des-jahres/tree/master/docs) and from the docstrings
  of the public signatures of the source code. The documentation is updated and published as a [Github Pages page](https://pages.github.com/) automatically as part each release.
 
 ### Releasing
 
-Trigger the [Draft release workflow](https://github.com/MarkusShepherd/spiel-des-jahres/actions/workflows/draft_release.yml)
+Trigger the [Draft release workflow](https://github.com/recommend-games/spiel-des-jahres/actions/workflows/draft_release.yml)
 (press _Run workflow_). This will update the changelog & version and create a GitHub release which is in _Draft_ state.
 
 Find the draft release from the
-[GitHub releases](https://github.com/MarkusShepherd/spiel-des-jahres/releases) and publish it. When
- a release is published, it'll trigger [release](https://github.com/MarkusShepherd/spiel-des-jahres/blob/master/.github/workflows/release.yml) workflow which creates PyPI
+[GitHub releases](https://github.com/recommend-games/spiel-des-jahres/releases) and publish it. When
+ a release is published, it'll trigger [release](https://github.com/recommend-games/spiel-des-jahres/blob/master/.github/workflows/release.yml) workflow which creates PyPI
  release and deploys updated documentation.
 
 ### Pre-commit

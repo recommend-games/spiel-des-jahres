@@ -8,9 +8,9 @@ authors = [
 license = "MIT"
 readme = "README.md"
 
-documentation = "https://MarkusShepherd.github.io/spiel-des-jahres"
-homepage = "https://MarkusShepherd.github.io/spiel-des-jahres"
-repository = "https://github.com/MarkusShepherd/spiel-des-jahres"
+documentation = "https://recommend-games.github.io/spiel-des-jahres"
+homepage = "https://recommend-games.github.io/spiel-des-jahres"
+repository = "https://github.com/recommend-games/spiel-des-jahres"
 
 classifiers = [
   "Development Status :: 4 - Beta",

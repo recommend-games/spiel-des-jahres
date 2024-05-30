@@ -1,5 +1,5 @@
 site_name: "Spiel des Jahres"
-repo_url: https://github.com/MarkusShepherd/spiel-des-jahres
+repo_url: https://github.com/recommend-games/spiel-des-jahres
 
 theme:
   name: material
