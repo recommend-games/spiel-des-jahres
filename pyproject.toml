@@ -60,7 +60,8 @@ select = ["ALL"]
 ignore = [
     "ANN",      # Type hints related, let mypy handle these.
     "D",        # Docstrings related, way too strict to our taste
-    ]
+    "T201",     # `print` found
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
