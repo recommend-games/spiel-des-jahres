@@ -1,6 +1,7 @@
 import argparse
 import csv
 import dataclasses
+import itertools
 import json
 import logging
 import sys
@@ -83,14 +84,36 @@ def awards_csv_to_ratings(
 
 def arg_parse() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("file_path", type=str, help="Path to the reviews CSV file")
+    parser.add_argument(
+        "--reviews-file",
+        "-r",
+        type=str,
+        help="Path to the reviews CSV file",
+    )
     parser.add_argument(
         "--reviewer-prefix",
         "-p",
         type=str,
         help="Prefix for BGG usernames",
     )
-    parser.add_argument("--year", "-y", type=int, help="Year of the reviews")
+    parser.add_argument(
+        "--year",
+        "-y",
+        type=int,
+        help="Year of the reviews",
+    )
+    parser.add_argument(
+        "--awards-file",
+        "-a",
+        type=str,
+        help="Path to the awards CSV file",
+    )
+    parser.add_argument(
+        "--awards-user",
+        "-u",
+        type=str,
+        help="BGG username for awards",
+    )
     parser.add_argument(
         "--verbose",
         "-v",
@@ -109,13 +132,27 @@ def main() -> None:
     )
     year = args.year or datetime.now(timezone.utc).year
 
-    ratings = reviews_csv_to_ratings(
-        file_path=args.file_path,
-        reviewer_prefix=args.reviewer_prefix or "",
-        updated_at=datetime(year, 1, 1, tzinfo=timezone.utc),
+    reviews_ratings = (
+        reviews_csv_to_ratings(
+            file_path=args.reviews_file,
+            reviewer_prefix=args.reviewer_prefix or "",
+            updated_at=datetime(year, 1, 1, tzinfo=timezone.utc),
+        )
+        if args.reviews_file
+        else ()
     )
 
-    for rating_obj in ratings:
+    awards_ratings = (
+        awards_csv_to_ratings(
+            file_path=args.awards_file,
+            bgg_user_name=args.awards_user,
+            award_ratings=AwardRatings(),
+        )
+        if args.awards_file and args.awards_user
+        else ()
+    )
+
+    for rating_obj in itertools.chain(reviews_ratings, awards_ratings):
         rating_dict = dataclasses.asdict(rating_obj)
         rating_str = json.dumps(rating_dict, default=json_datetime)
         print(rating_str)
