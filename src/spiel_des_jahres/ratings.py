@@ -9,16 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from spiel_des_jahres.data import Rating
+
 LOGGER = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class Rating:
-    bgg_id: int
-    bgg_user_name: str
-    bgg_user_rating: float
-    updated_at: datetime
-    scraped_at: datetime
 
 
 def reviews_csv_to_ratings(
