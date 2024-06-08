@@ -1,3 +1,4 @@
+import argparse
 import csv
 import dataclasses
 import json
@@ -6,6 +7,7 @@ import sys
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 LOGGER = logging.getLogger(__name__)
 
@@ -50,23 +52,51 @@ def reviews_csv_to_ratings(
                     )
 
 
-def main(file_path: str | Path) -> None:
-    logging.basicConfig(level=logging.DEBUG, stream=sys.stderr)
-    ratings = reviews_csv_to_ratings(
-        file_path,
-        reviewer_prefix="s_d_j_",
-        updated_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+def json_datetime(obj: Any) -> str:
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"{obj} is not JSON serializable")
+
+
+def arg_parse() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("file_path", type=str, help="Path to the reviews CSV file")
+    parser.add_argument(
+        "--reviewer-prefix",
+        "-p",
+        type=str,
+        help="Prefix for BGG usernames",
     )
-    for rating in ratings:
-        rating_dict = dataclasses.asdict(rating)
-        # Handle datetime objects in JSON serialization
-        print(
-            json.dumps(
-                rating_dict,
-                default=lambda o: o.isoformat() if isinstance(o, datetime) else str(o),
-            ),
-        )
+    parser.add_argument("--year", "-y", type=int, help="Year of the reviews")
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="count",
+        default=0,
+        help="Increase verbosity",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = arg_parse()
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        stream=sys.stderr,
+    )
+    year = args.year or datetime.now(timezone.utc).year
+
+    ratings = reviews_csv_to_ratings(
+        file_path=args.file_path,
+        reviewer_prefix=args.reviewer_prefix or "",
+        updated_at=datetime(year, 1, 1, tzinfo=timezone.utc),
+    )
+
+    for rating_obj in ratings:
+        rating_dict = dataclasses.asdict(rating_obj)
+        rating_str = json.dumps(rating_dict, default=json_datetime)
+        print(rating_str)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main()
