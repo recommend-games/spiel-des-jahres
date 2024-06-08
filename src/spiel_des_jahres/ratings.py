@@ -7,9 +7,9 @@ import sys
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from spiel_des_jahres.data import Rating
+from spiel_des_jahres.utils import json_datetime
 
 LOGGER = logging.getLogger(__name__)
 
@@ -43,12 +43,6 @@ def reviews_csv_to_ratings(
                         updated_at=updated_at,
                         scraped_at=now,
                     )
-
-
-def json_datetime(obj: Any) -> str:
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError(f"{obj} is not JSON serializable")
 
 
 def arg_parse() -> argparse.Namespace:
