@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 
-from spiel_des_jahres.data import Rating
+from spiel_des_jahres.data import AwardRatings, Rating
 from spiel_des_jahres.utils import json_datetime
 
 LOGGER = logging.getLogger(__name__)
@@ -43,6 +43,42 @@ def reviews_csv_to_ratings(
                         updated_at=updated_at,
                         scraped_at=now,
                     )
+
+
+def awards_csv_to_ratings(
+    file_path: str | Path,
+    *,
+    bgg_user_name: str,
+    award_ratings: AwardRatings,
+) -> Iterable[Rating]:
+    file_path = Path(file_path).resolve()
+    LOGGER.info("Reading awards from <%s>", file_path)
+
+    now = datetime.now(timezone.utc)
+
+    with file_path.open("r", newline="") as file:
+        reader = csv.DictReader(file)
+
+        for row in reader:
+            bgg_id = int(row["bgg_id"])
+            year = int(row["jahrgang"])
+            winner = bool(int(row["winner"]))
+            nominated = bool(int(row["nominated"]))
+            recommended = bool(int(row["recommended"]))
+            sonderpreis = bool(row["sonderpreis"])
+            rating = max(
+                winner * award_ratings.winner_rating,
+                nominated * award_ratings.nominated_rating,
+                recommended * award_ratings.recommended_rating,
+                sonderpreis * award_ratings.sonderpreis_rating,
+            )
+            yield Rating(
+                bgg_id=bgg_id,
+                bgg_user_name=bgg_user_name,
+                bgg_user_rating=rating,
+                updated_at=datetime(year, 1, 1, tzinfo=timezone.utc),
+                scraped_at=now,
+            )
 
 
 def arg_parse() -> argparse.Namespace:
