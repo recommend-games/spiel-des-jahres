@@ -69,6 +69,7 @@ ignore = [
     "EM102",    # Exception must not use an f-string literal, assign to variable first
     "T201",     # `print` found
     "TRY003",   # Avoid specifying long messages outside the exception class
+    "ERA001",
 ]
 
 [tool.ruff.lint.per-file-ignores]
