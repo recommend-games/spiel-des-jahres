@@ -18,11 +18,22 @@ class SpielReviewSpider(SitemapSpider):
     sitemap_urls = ("https://www.spiel-des-jahres.de/robots.txt",)
     sitemap_rules = ((r"/kritikenrundschau-", "parse_review"),)
 
-    # custom_settings = {
-    #     "EXTENSIONS": {
-    #         "spiel.extensions.LLMExtractionExtension": 500,
-    #     },
-    # }
+    custom_settings = {  # noqa: RUF012
+        "DOWNLOAD_DELAY": 1,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 4,
+        "FEED_EXPORT_BATCH_ITEM_COUNT": 10_000,
+        "FEEDS": {
+            "results/reviews-%(time)s-%(batch_id)05d.jl": {
+                "format": "jsonlines",
+                "overwrite": False,
+                "store_empty": False,
+            },
+        },
+        "JOBDIR": ".jobs",
+        # "EXTENSIONS": {
+        #     "spiel.extensions.LLMExtractionExtension": 500,
+        # },
+    }
 
     def parse_review(self, response: Response) -> Generator[dict[str, Any]]:
         article_html = response.css("article").get()
