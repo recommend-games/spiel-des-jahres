@@ -20,7 +20,7 @@ class SpielReviewSpider(SitemapSpider):
 
     custom_settings = {  # noqa: RUF012
         "DOWNLOAD_DELAY": 1,
-        "CONCURRENT_REQUESTS_PER_DOMAIN": 4,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 16,
         "FEED_EXPORT_BATCH_ITEM_COUNT": 10_000,
         "FEEDS": {
             "results/reviews-%(time)s-%(batch_id)05d.jl": {
@@ -36,7 +36,7 @@ class SpielReviewSpider(SitemapSpider):
     }
 
     def parse_review(self, response: Response) -> Generator[dict[str, Any]]:
-        article_html = response.css("article").get()
+        article_html = response.xpath("//article").get()
         if not article_html:
             self.logger.error("No article HTML found")
             return
@@ -44,12 +44,18 @@ class SpielReviewSpider(SitemapSpider):
 
         yield {
             "url": response.url,
-            "title": response.css("title::text").get(),
-            "description": response.css(
-                'meta[name="description"]::attr(content)',
+            "title": response.xpath("//title/text()").get(),
+            "description": response.xpath("//meta[@name='description']/@content").get(),
+            "date_published": response.xpath(
+                "//meta[@property='article:published_time']/@content",
             ).get(),
-            "date_published": response.css(
-                'meta[property="article:published_time"]::attr(content)',
+            "image": response.xpath("//meta[@property='og:image']/@content").get(),
+            "wp_json_url": response.xpath(
+                "//link[@rel='alternate' and @type='application/json' "
+                + "and @title='JSON']/@href",
+            ).get(),
+            "oembed_json_url": response.xpath(
+                "//link[@rel='alternate' and @type='application/json+oembed']/@href",
             ).get(),
             "raw_text": article_text,
             # LLM-enriched content will be added via extension
