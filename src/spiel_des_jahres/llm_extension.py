@@ -1,34 +1,43 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from openai import OpenAI
 from scrapy import signals
 
+if TYPE_CHECKING:
+    from typing import Any
+
+    from scrapy.crawler import Crawler
+    from scrapy.spiders import Spider
+
 
 class LLMExtractionExtension:
-    def __init__(self, api_base: str, api_key: str, model: str):
-        self.client = OpenAI(base_url=api_base, api_key=api_key)
+    def __init__(
+        self,
+        api_base_url: str | None = None,
+        api_key: str | None = None,
+        model: str = "gpt-4",
+    ):
+        self.client = OpenAI(base_url=api_base_url, api_key=api_key)
         self.model = model
 
     @classmethod
-    def from_crawler(cls, crawler):
-        return cls(
-            api_base=crawler.settings.get("LLM_API_BASE", "http://localhost:8000/v1"),
-            api_key=crawler.settings.get("LLM_API_KEY", "local-key"),
-            model=crawler.settings.get("LLM_MODEL", "gpt-4"),
+    def from_crawler(cls, crawler: Crawler) -> LLMExtractionExtension:
+        extension = cls(
+            api_base_url=crawler.settings.get("LLM_API_BASE_URL"),
+            api_key=crawler.settings.get("LLM_API_KEY"),
+            model=crawler.settings.get("LLM_MODEL") or "gpt-4",
         )
+        crawler.signals.connect(extension.process_item, signals.item_scraped)
+        return extension
 
-    @classmethod
-    def from_settings(cls, settings):
-        return cls(
-            api_base=settings.get("LLM_API_BASE"),
-            api_key=settings.get("LLM_API_KEY"),
-            model=settings.get("LLM_MODEL"),
-        )
-
-    @signals.item_scraped.connect
-    def process_item(self, item, spider):
+    def process_item(
+        self,
+        item: dict[str, Any],
+        spider: Spider,
+    ) -> dict[str, Any] | None:
         if not item.get("raw_text"):
             return None
 
@@ -58,9 +67,18 @@ class LLMExtractionExtension:
                 temperature=0.2,
             )
             content = response.choices[0].message.content
-            item["reviews"] = json.loads(content)
         except Exception:
             spider.logger.exception("LLM parsing failed")
-            item["reviews"] = content if "content" in locals() else None
+            content = None
+
+        if not content:
+            item["reviews"] = None
+            return item
+
+        try:
+            item["reviews"] = json.loads(content)
+        except Exception:
+            spider.logger.exception("Failed to parse LLM response")
+            item["reviews"] = None
 
         return item
