@@ -81,3 +81,6 @@ venv.bak/
 # Scrapy
 .jobs/
 results/
+
+# Misc
+.~*

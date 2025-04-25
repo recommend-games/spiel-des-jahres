@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import csv
 import dataclasses
@@ -5,14 +7,71 @@ import itertools
 import json
 import logging
 import sys
-from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from spiel_des_jahres.data import AwardRatings, Rating
 from spiel_des_jahres.utils import json_datetime
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Any
+
+    import polars as pl
+
 LOGGER = logging.getLogger(__name__)
+
+
+def _parse_reviews_jl(
+    file_path: str | Path,
+) -> Iterable[dict[str, Any]]:
+    file_path = Path(file_path).resolve()
+    LOGGER.info("Reading reviews from <%s>", file_path)
+
+    with file_path.open("r", newline="") as file:
+        for article in map(json.loads, file):
+            article_data = {
+                "url": article.get("url"),
+                "date_published": article.get("date_published"),
+            }
+            article_reviews = article.get("reviews")
+
+            if not isinstance(article_reviews, list):
+                LOGGER.warning("No reviews found in article: %s", article_data)
+                continue
+
+            for review in article_reviews:
+                yield {**article_data, **review}
+
+
+def reviews_jl_to_polars(
+    file_path: str | Path,
+) -> pl.DataFrame:
+    import polars as pl
+
+    reviews = pl.LazyFrame(_parse_reviews_jl(file_path)).select(
+        pl.lit(None).alias("bgg_id"),
+        pl.col("game_title").alias("name"),
+        "url",
+        "date_published",
+        "reviewer_id",
+        "rating",
+    )
+
+    reviewers = (
+        reviews.select("reviewer_id")
+        .unique()
+        .sort("reviewer_id")
+        .collect()["reviewer_id"]
+    )
+
+    return (
+        reviews.collect()
+        .pivot(on="reviewer_id", values="rating")
+        .select(pl.exclude(reviewers), *reviewers)
+        .sort("date_published", "name")
+    )
 
 
 def reviews_csv_to_ratings(
@@ -33,6 +92,13 @@ def reviews_csv_to_ratings(
         for row in reader:
             bgg_id = int(row.pop("bgg_id"))
             name = row.pop("name", None)
+            _ = row.pop("url", None)
+
+            try:
+                date_published = datetime.fromisoformat(row.pop("date_published", None))
+            except Exception:
+                date_published = None
+
             LOGGER.debug("Processing reviews for <%s> (BGG ID %d)", name, bgg_id)
 
             for reviewer, rating in row.items():
@@ -41,7 +107,7 @@ def reviews_csv_to_ratings(
                         bgg_id=bgg_id,
                         bgg_user_name=f"{reviewer_prefix}{reviewer}",
                         bgg_user_rating=float(rating),
-                        updated_at=updated_at,
+                        updated_at=date_published or updated_at,
                         scraped_at=now,
                     )
 
@@ -126,17 +192,19 @@ def arg_parse() -> argparse.Namespace:
 
 def main() -> None:
     args = arg_parse()
+
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         stream=sys.stderr,
     )
-    year = args.year or datetime.now(timezone.utc).year
 
     reviews_ratings = (
         reviews_csv_to_ratings(
             file_path=args.reviews_file,
             reviewer_prefix=args.reviewer_prefix or "",
-            updated_at=datetime(year, 1, 1, tzinfo=timezone.utc),
+            updated_at=datetime(args.year, 1, 1, tzinfo=timezone.utc)
+            if args.year
+            else None,
         )
         if args.reviews_file
         else ()
