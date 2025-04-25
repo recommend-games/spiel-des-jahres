@@ -50,18 +50,26 @@ def reviews_jl_to_polars(
 ) -> pl.DataFrame:
     import polars as pl
 
+    reviews = pl.LazyFrame(_parse_reviews_jl(file_path)).select(
+        pl.lit(None).alias("bgg_id"),
+        pl.col("game_title").alias("name"),
+        "url",
+        "date_published",
+        "reviewer_id",
+        "rating",
+    )
+
+    reviewers = (
+        reviews.select("reviewer_id")
+        .unique()
+        .sort("reviewer_id")
+        .collect()["reviewer_id"]
+    )
+
     return (
-        pl.LazyFrame(_parse_reviews_jl(file_path))
-        .select(
-            pl.lit(None).alias("bgg_id"),
-            pl.col("game_title").alias("name"),
-            "url",
-            "date_published",
-            "reviewer_id",
-            "rating",
-        )
-        .collect()
+        reviews.collect()
         .pivot(on="reviewer_id", values="rating")
+        .select(pl.exclude(reviewers), *reviewers)
     )
 
 
