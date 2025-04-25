@@ -5,7 +5,6 @@ import re
 from typing import TYPE_CHECKING
 
 from openai import OpenAI
-from scrapy import signals
 
 if TYPE_CHECKING:
     from typing import Any
@@ -14,11 +13,20 @@ if TYPE_CHECKING:
     from scrapy.spiders import Spider
 
 
-class LLMExtractionExtension:
+class LLMExtractionPipeline:
     json_regex = re.compile(r"\[.*\]", re.DOTALL)
+
+    @classmethod
+    def from_crawler(cls, crawler: Crawler) -> LLMExtractionPipeline:
+        return cls(
+            api_base_url=crawler.settings.get("LLM_API_BASE_URL"),
+            api_key=crawler.settings.get("LLM_API_KEY"),
+            model=crawler.settings.get("LLM_MODEL") or "gpt-4o-mini",
+        )
 
     def __init__(
         self,
+        *,
         api_base_url: str | None = None,
         api_key: str | None = None,
         model: str = "gpt-4o-mini",
@@ -26,23 +34,13 @@ class LLMExtractionExtension:
         self.client = OpenAI(base_url=api_base_url, api_key=api_key)
         self.model = model
 
-    @classmethod
-    def from_crawler(cls, crawler: Crawler) -> LLMExtractionExtension:
-        extension = cls(
-            api_base_url=crawler.settings.get("LLM_API_BASE_URL"),
-            api_key=crawler.settings.get("LLM_API_KEY"),
-            model=crawler.settings.get("LLM_MODEL") or "gpt-4o-mini",
-        )
-        crawler.signals.connect(extension.process_item, signals.item_scraped)
-        return extension
-
     def process_item(
         self,
         item: dict[str, Any],
         spider: Spider,
     ) -> dict[str, Any] | None:
-        if not item.get("raw_text"):
-            return None
+        if not item or not item.get("raw_text"):
+            return item
 
         prompt = f"""The following text is a collection of board game reviews.
 For each game and reviewer mentioned, extract:
@@ -65,6 +63,7 @@ TEXT:
 """
 
         try:
+            # TODO: this call should be async
             response = self.client.responses.create(
                 model=self.model,
                 input=prompt,

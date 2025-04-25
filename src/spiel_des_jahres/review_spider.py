@@ -30,8 +30,8 @@ class SpielReviewSpider(SitemapSpider):
             },
         },
         "JOBDIR": ".jobs",
-        "EXTENSIONS": {
-            "spiel_des_jahres.llm_extension.LLMExtractionExtension": 500,
+        "ITEM_PIPELINES": {
+            "spiel_des_jahres.llm_pipeline.LLMExtractionPipeline": 500,
         },
     }
 
