@@ -78,5 +78,9 @@ venv.bak/
 # IDEs
 .idea/
 
+# Scrapy
+.jobs/
+results/
+
 # Misc
 .~*
