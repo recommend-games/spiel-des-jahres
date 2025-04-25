@@ -92,6 +92,13 @@ def reviews_csv_to_ratings(
         for row in reader:
             bgg_id = int(row.pop("bgg_id"))
             name = row.pop("name", None)
+            _ = row.pop("url", None)
+
+            try:
+                date_published = datetime.fromisoformat(row.pop("date_published", None))
+            except Exception:
+                date_published = None
+
             LOGGER.debug("Processing reviews for <%s> (BGG ID %d)", name, bgg_id)
 
             for reviewer, rating in row.items():
@@ -100,7 +107,7 @@ def reviews_csv_to_ratings(
                         bgg_id=bgg_id,
                         bgg_user_name=f"{reviewer_prefix}{reviewer}",
                         bgg_user_rating=float(rating),
-                        updated_at=updated_at,
+                        updated_at=date_published or updated_at,
                         scraped_at=now,
                     )
 
