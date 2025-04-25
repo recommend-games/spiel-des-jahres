@@ -192,17 +192,19 @@ def arg_parse() -> argparse.Namespace:
 
 def main() -> None:
     args = arg_parse()
+
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         stream=sys.stderr,
     )
-    year = args.year or datetime.now(timezone.utc).year
 
     reviews_ratings = (
         reviews_csv_to_ratings(
             file_path=args.reviews_file,
             reviewer_prefix=args.reviewer_prefix or "",
-            updated_at=datetime(year, 1, 1, tzinfo=timezone.utc),
+            updated_at=datetime(args.year, 1, 1, tzinfo=timezone.utc)
+            if args.year
+            else None,
         )
         if args.reviews_file
         else ()
