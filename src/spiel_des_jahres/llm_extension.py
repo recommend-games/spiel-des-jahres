@@ -18,7 +18,7 @@ class LLMExtractionExtension:
         self,
         api_base_url: str | None = None,
         api_key: str | None = None,
-        model: str = "gpt-4",
+        model: str = "gpt-4o-mini",
     ):
         self.client = OpenAI(base_url=api_base_url, api_key=api_key)
         self.model = model
