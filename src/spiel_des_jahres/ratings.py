@@ -70,6 +70,7 @@ def reviews_jl_to_polars(
         reviews.collect()
         .pivot(on="reviewer_id", values="rating")
         .select(pl.exclude(reviewers), *reviewers)
+        .sort("date_published", "name")
     )
 
 
