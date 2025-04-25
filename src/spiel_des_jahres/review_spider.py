@@ -19,8 +19,8 @@ class SpielReviewSpider(SitemapSpider):
     sitemap_rules = ((r"/kritikenrundschau-", "parse_review"),)
 
     custom_settings = {  # noqa: RUF012
-        "DOWNLOAD_DELAY": 1,
-        "CONCURRENT_REQUESTS_PER_DOMAIN": 16,
+        "DOWNLOAD_DELAY": 0.25,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 4,
         "FEED_EXPORT_BATCH_ITEM_COUNT": 10_000,
         "FEEDS": {
             "results/reviews-%(time)s-%(batch_id)05d.jl": {
@@ -30,9 +30,9 @@ class SpielReviewSpider(SitemapSpider):
             },
         },
         "JOBDIR": ".jobs",
-        # "EXTENSIONS": {
-        #     "spiel.extensions.LLMExtractionExtension": 500,
-        # },
+        "EXTENSIONS": {
+            "spiel_des_jahres.llm_extension.LLMExtractionExtension": 500,
+        },
     }
 
     def parse_review(self, response: Response) -> dict[str, Any] | Request | None:

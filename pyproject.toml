@@ -66,6 +66,8 @@ select = ["ALL"]
 ignore = [
     "ANN",      # Type hints related, let mypy handle these.
     "D",        # Docstrings related, way too strict to our taste
+    "TD",
+    "FIX",
     "EM102",    # Exception must not use an f-string literal, assign to variable first
     "T201",     # `print` found
     "TRY003",   # Avoid specifying long messages outside the exception class

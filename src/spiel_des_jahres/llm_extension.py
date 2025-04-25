@@ -41,37 +41,39 @@ class LLMExtractionExtension:
         if not item.get("raw_text"):
             return None
 
-        prompt = f"""
-        The following text is a collection of board game reviews.
-        For each reviewer mentioned, extract:
+        prompt = f"""The following text is a collection of board game reviews.
+For each game and reviewer mentioned, extract:
 
-        - their name,
-        - their review score if any, including max score (e.g. 3 out of 5),
-        - a short summary of their opinion,
-        - the sentiment ('positive', 'neutral', 'negative'),
-        - a 1–10 rating derived from their score and/or sentiment.
+- game title,
+- reviewer name (both plain and reviewer ID as lower snake case),
+- their review score or category if any,
+  including max score (e.g. 3 out of 5 or "Excellent"),
+- a short summary of their opinion,
+- the sentiment ('positive', 'neutral', 'negative'),
+- a 1–10 rating derived from their score and/or sentiment.
 
-        Return a JSON array with objects having these keys:
-        name, score, summary, sentiment, rating.
+Return a JSON array with objects having these keys:
+game_title, reviewer_name, reviewer_id, score, summary, sentiment, rating.
 
-        TEXT:
-        \"\"\"
-        {item["raw_text"]}
-        \"\"\"
-        """
+TEXT:
+\"\"\"
+{item["raw_text"]}
+\"\"\"
+"""
 
         try:
-            response = self.client.chat.completions.create(
+            response = self.client.responses.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
+                input=prompt,
+                # TODO: instructions
             )
-            content = response.choices[0].message.content
+            content = response.output_text
         except Exception:
             spider.logger.exception("LLM parsing failed")
             content = None
 
         if not content:
+            spider.logger.error("LLM returned empty content")
             item["reviews"] = None
             return item
 
@@ -79,6 +81,6 @@ class LLMExtractionExtension:
             item["reviews"] = json.loads(content)
         except Exception:
             spider.logger.exception("Failed to parse LLM response")
-            item["reviews"] = None
+            item["reviews"] = json.dumps(content)
 
         return item
