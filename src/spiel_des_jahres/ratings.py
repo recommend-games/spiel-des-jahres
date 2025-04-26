@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from spiel_des_jahres.data import AwardRatings, Rating
+from spiel_des_jahres.data import AwardRatings, Rating, User
 from spiel_des_jahres.utils import json_datetime
 
 if TYPE_CHECKING:
@@ -72,6 +72,41 @@ def reviews_jl_to_polars(
         .select(pl.exclude(reviewers), *reviewers)
         .sort("date_published", "name")
     )
+
+
+def reviews_csv_to_users(
+    file_path: str | Path,
+    *,
+    updated_at: datetime | None = None,
+    reviewer_prefix: str = "",
+    cols_to_exclude: Iterable[str] = ("bgg_id", "name", "url", "date_published"),
+) -> Iterable[User]:
+    file_path = Path(file_path).resolve()
+    LOGGER.info("Reading users from <%s>", file_path)
+
+    cols_to_exclude = frozenset(cols_to_exclude)
+
+    now = datetime.now(timezone.utc)
+    updated_at = updated_at or now
+
+    with file_path.open("r", newline="") as file:
+        reader = csv.DictReader(file)
+        fieldnames = reader.fieldnames or ()
+        reviewer_names = [col for col in fieldnames if col not in cols_to_exclude]
+        for reviewer_name in reviewer_names:
+            if "_" in reviewer_name:
+                first_name, last_name = reviewer_name.split("_", 1)
+            else:
+                first_name = reviewer_name
+                last_name = None
+
+            yield User(
+                bgg_user_name=f"{reviewer_prefix}{reviewer_name}",
+                first_name=first_name.capitalize() if first_name else None,
+                last_name=last_name.capitalize() if last_name else None,
+                updated_at=updated_at,
+                scraped_at=now,
+            )
 
 
 def reviews_csv_to_ratings(
