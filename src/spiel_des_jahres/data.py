@@ -3,6 +3,15 @@ from datetime import datetime
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class User:
+    bgg_user_name: str
+    first_name: str
+    last_name: str
+    updated_at: datetime
+    scraped_at: datetime
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class Rating:
     bgg_id: int
     bgg_user_name: str
