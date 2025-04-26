@@ -186,6 +186,14 @@ def awards_csv_to_ratings(
 def arg_parse() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--item-type",
+        "-t",
+        type=str,
+        choices=("user", "rating"),
+        default="rating",
+        help="Type of items to process",
+    )
+    parser.add_argument(
         "--reviews-file",
         "-r",
         type=str,
@@ -233,6 +241,18 @@ def main() -> None:
         stream=sys.stderr,
     )
 
+    reviews_users = (
+        reviews_csv_to_users(
+            file_path=args.reviews_file,
+            reviewer_prefix=args.reviewer_prefix or "",
+            updated_at=datetime(args.year, 1, 1, tzinfo=timezone.utc)
+            if args.year
+            else None,
+        )
+        if args.item_type == "user" and args.reviews_file
+        else ()
+    )
+
     reviews_ratings = (
         reviews_csv_to_ratings(
             file_path=args.reviews_file,
@@ -241,7 +261,7 @@ def main() -> None:
             if args.year
             else None,
         )
-        if args.reviews_file
+        if args.item_type == "rating" and args.reviews_file
         else ()
     )
 
@@ -251,14 +271,15 @@ def main() -> None:
             bgg_user_name=args.awards_user,
             award_ratings=AwardRatings(),
         )
-        if args.awards_file and args.awards_user
+        if args.item_type == "rating" and args.awards_file and args.awards_user
         else ()
     )
 
-    for rating_obj in itertools.chain(reviews_ratings, awards_ratings):
-        rating_dict = dataclasses.asdict(rating_obj)
-        rating_str = json.dumps(rating_dict, default=json_datetime)
-        print(rating_str)
+    for obj in itertools.chain(reviews_users, reviews_ratings, awards_ratings):
+        assert isinstance(obj, User | Rating), f"Invalid item type: {type(obj)}"
+        obj_dict = dataclasses.asdict(obj)
+        obj_str = json.dumps(obj_dict, default=json_datetime)
+        print(obj_str)
 
 
 if __name__ == "__main__":
