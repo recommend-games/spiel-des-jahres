@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from spiel_des_jahres.data import AwardRatings, Rating
+from spiel_des_jahres.data import AwardRatings, Rating, User
 from spiel_des_jahres.utils import json_datetime
 
 if TYPE_CHECKING:
@@ -72,6 +72,41 @@ def reviews_jl_to_polars(
         .select(pl.exclude(reviewers), *reviewers)
         .sort("date_published", "name")
     )
+
+
+def reviews_csv_to_users(
+    file_path: str | Path,
+    *,
+    updated_at: datetime | None = None,
+    reviewer_prefix: str = "",
+    cols_to_exclude: Iterable[str] = ("bgg_id", "name", "url", "date_published"),
+) -> Iterable[User]:
+    file_path = Path(file_path).resolve()
+    LOGGER.info("Reading users from <%s>", file_path)
+
+    cols_to_exclude = frozenset(cols_to_exclude)
+
+    now = datetime.now(timezone.utc)
+    updated_at = updated_at or now
+
+    with file_path.open("r", newline="") as file:
+        reader = csv.DictReader(file)
+        fieldnames = reader.fieldnames or ()
+        reviewer_names = [col for col in fieldnames if col not in cols_to_exclude]
+        for reviewer_name in reviewer_names:
+            if "_" in reviewer_name:
+                first_name, last_name = reviewer_name.split("_", 1)
+            else:
+                first_name = reviewer_name
+                last_name = None
+
+            yield User(
+                bgg_user_name=f"{reviewer_prefix}{reviewer_name}",
+                first_name=first_name.capitalize() if first_name else None,
+                last_name=last_name.capitalize() if last_name else None,
+                updated_at=updated_at,
+                scraped_at=now,
+            )
 
 
 def reviews_csv_to_ratings(
@@ -151,6 +186,14 @@ def awards_csv_to_ratings(
 def arg_parse() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--item-type",
+        "-t",
+        type=str,
+        choices=("user", "rating"),
+        default="rating",
+        help="Type of items to process",
+    )
+    parser.add_argument(
         "--reviews-file",
         "-r",
         type=str,
@@ -198,6 +241,18 @@ def main() -> None:
         stream=sys.stderr,
     )
 
+    reviews_users = (
+        reviews_csv_to_users(
+            file_path=args.reviews_file,
+            reviewer_prefix=args.reviewer_prefix or "",
+            updated_at=datetime(args.year, 1, 1, tzinfo=timezone.utc)
+            if args.year
+            else None,
+        )
+        if args.item_type == "user" and args.reviews_file
+        else ()
+    )
+
     reviews_ratings = (
         reviews_csv_to_ratings(
             file_path=args.reviews_file,
@@ -206,7 +261,7 @@ def main() -> None:
             if args.year
             else None,
         )
-        if args.reviews_file
+        if args.item_type == "rating" and args.reviews_file
         else ()
     )
 
@@ -216,14 +271,15 @@ def main() -> None:
             bgg_user_name=args.awards_user,
             award_ratings=AwardRatings(),
         )
-        if args.awards_file and args.awards_user
+        if args.item_type == "rating" and args.awards_file and args.awards_user
         else ()
     )
 
-    for rating_obj in itertools.chain(reviews_ratings, awards_ratings):
-        rating_dict = dataclasses.asdict(rating_obj)
-        rating_str = json.dumps(rating_dict, default=json_datetime)
-        print(rating_str)
+    for obj in itertools.chain(reviews_users, reviews_ratings, awards_ratings):
+        assert isinstance(obj, User | Rating), f"Invalid item type: {type(obj)}"
+        obj_dict = dataclasses.asdict(obj)
+        obj_str = json.dumps(obj_dict, default=json_datetime)
+        print(obj_str)
 
 
 if __name__ == "__main__":
