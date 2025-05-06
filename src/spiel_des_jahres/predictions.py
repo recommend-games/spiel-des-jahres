@@ -76,16 +76,29 @@ def recommend_games(
     max_results: int | None = 25,
     timeout: float = 60,
     request_params: dict[str, Any] | None = None,
-) -> Iterable[dict[str, Any]]:
+    progress_bar: bool = False,
+) -> Generator[dict[str, Any]]:
     """Call to a Recommend.Games instance."""
 
-    results = _recommend_games(
+    results: Iterable[dict[str, Any]] = _recommend_games(
         base_url=base_url,
         timeout=timeout,
         request_params=request_params,
     )
 
-    return islice(results, max_results) if max_results else results
+    results = islice(results, max_results) if max_results else results
+
+    if progress_bar:
+        from tqdm import tqdm
+
+        results = tqdm(
+            results,
+            desc="Fetching recommendations",
+            unit="game",
+            total=max_results,
+        )
+
+    yield from results
 
 
 def fetch_candidates(
@@ -125,17 +138,8 @@ def fetch_candidates(
         max_results=max_results,
         timeout=timeout,
         request_params=params,
+        progress_bar=progress_bar,
     )
-
-    if progress_bar:
-        from tqdm import tqdm
-
-        candidates = tqdm(
-            candidates,
-            desc="Fetching candidates",
-            unit="game",
-            total=max_results,
-        )
 
     return (
         pl.LazyFrame(candidates)
@@ -195,7 +199,7 @@ def fetch_all_candidates(
         .collect()["bgg_id"]
     )
     exclude = (
-        pl.concat([exclude, prev_awards], how="vertical_relaxed")
+        pl.concat([exclude, prev_awards], how="vertical")
         .unique(maintain_order=True)
         .head(max_exclude_games)
     )
@@ -212,11 +216,6 @@ def fetch_all_candidates(
         base_url=base_url,
         timeout=timeout,
         progress_bar=progress_bar,
-    ).rename(
-        {
-            "rec_rating": f"rec_rating_{main_user}",
-            "rec_score": f"rec_score_{main_user}",
-        },
     )
 
     for jury_member in jury_members:
@@ -230,6 +229,7 @@ def fetch_all_candidates(
             max_results=max_results,
             base_url=base_url,
             timeout=timeout,
+            progress_bar=progress_bar,
         ).select("bgg_id", "rec_rating", "rec_score")
 
         result = result.join(
@@ -239,4 +239,9 @@ def fetch_all_candidates(
             suffix=f"_{jury_member}",
         )
 
-    return result
+    return result.rename(
+        {
+            "rec_rating": f"rec_rating_{main_user}",
+            "rec_score": f"rec_score_{main_user}",
+        },
+    )
