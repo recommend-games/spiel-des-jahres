@@ -85,6 +85,7 @@ ignore = [
     "RUF001",
     "ISC003",
     "S101",     # "Use of `assert` detected"
+    "DTZ011",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -103,6 +104,9 @@ classmethod-decorators = [
     "pydantic.validator",
     "pydantic.root_validator",
 ]
+
+[tool.ruff.lint.pylint]
+max-args = 10
 
 [tool.pytest.ini_options]
 addopts = """\
