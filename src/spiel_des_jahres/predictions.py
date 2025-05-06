@@ -99,6 +99,7 @@ def fetch_candidates(
     base_url: str = BASE_URL,
     timeout: float = 60,
     request_params: dict[str, Any] | None = None,
+    progress_bar: bool = False,
 ) -> pl.LazyFrame:
     user_name = user_name.lower()
     year = year or date.today().year
@@ -126,6 +127,16 @@ def fetch_candidates(
         request_params=params,
     )
 
+    if progress_bar:
+        from tqdm import tqdm
+
+        candidates = tqdm(
+            candidates,
+            desc="Fetching candidates",
+            unit="game",
+            total=max_results,
+        )
+
     return (
         pl.LazyFrame(candidates)
         .select(
@@ -144,7 +155,7 @@ def fetch_candidates(
             kennerspiel=pl.col("kennerspiel_score") > kennerspiel_cutoff_score,
         )
         .with_columns(
-            rec_rank=pl.col("rec_rating").rank(method="max").over("kennerspiel")
+            rec_score=pl.col("rec_rating").rank(method="max").over("kennerspiel")
             / pl.len().over("kennerspiel"),
         )
     )
@@ -152,19 +163,21 @@ def fetch_candidates(
 
 def fetch_all_candidates(
     year: int,
+    *,
     main_user: str = "s_d_j",
-    # jury_member_prefix: str = "s_d_j_",
+    jury_member_prefix: str = "s_d_j_",
     kennerspiel_cutoff_score: float = 0.5,
     max_results: int | None = 25,
     base_url: str = BASE_URL,
     timeout: float = 60,
     max_exclude_games: int = 250,
+    progress_bar: bool = False,
 ) -> pl.LazyFrame:
     """Fetch all candidates from the recommendation API."""
 
     reviews = pl.read_csv(DATA_DIR / str(year) / "reviews.csv")
     include = reviews["bgg_id"]
-    # jury_members = reviews.select(pl.exclude("bgg_id", "name")).columns
+    jury_members = reviews.select(pl.exclude("bgg_id", "name")).columns
     del reviews
 
     exclude = (
@@ -188,7 +201,8 @@ def fetch_all_candidates(
     )
     del prev_awards
 
-    return fetch_candidates(
+    LOGGER.info("Fetching candidates for %s", main_user)
+    result = fetch_candidates(
         user_name=main_user,
         year=year,
         bgg_ids_include=include,
@@ -197,4 +211,32 @@ def fetch_all_candidates(
         max_results=max_results,
         base_url=base_url,
         timeout=timeout,
+        progress_bar=progress_bar,
+    ).rename(
+        {
+            "rec_rating": f"rec_rating_{main_user}",
+            "rec_score": f"rec_score_{main_user}",
+        },
     )
+
+    for jury_member in jury_members:
+        LOGGER.info("Fetching candidates for %s", jury_member)
+        results_jury_member = fetch_candidates(
+            user_name=f"{jury_member_prefix}{jury_member}",
+            year=year,
+            bgg_ids_include=include,
+            bgg_ids_exclude=exclude,
+            kennerspiel_cutoff_score=kennerspiel_cutoff_score,
+            max_results=max_results,
+            base_url=base_url,
+            timeout=timeout,
+        ).select("bgg_id", "rec_rating", "rec_score")
+
+        result = result.join(
+            results_jury_member,
+            on="bgg_id",
+            how="left",
+            suffix=f"_{jury_member}",
+        )
+
+    return result
