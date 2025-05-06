@@ -1,6 +1,6 @@
 bgg_id,name,udo_bartsch,johanna_france,tobias_franke,manuel_fritsch,martina_fuchs,karsten_grosser,maren_hoffmann,stephan_kessler,tim_koch,michaela_poignee,christoph_schlewinski,harald_schrapers,nico_wagner,julia_zerlik
 418059,SETI,7,,,10,,,9,6,,,,,,
-400602,Civolution,,,,5,,,8,,,,,,,
+400602,Civolution,8,,,5,,,8,,,,,,,
 354323,Goblin Coaster,,,,,,,,,,,6,,,
 374134,Chandigarh,,,,5,,,,,,,,,,
 412535,Friedrich Ebert,,,,,,,7,,,,,,,
@@ -87,7 +87,7 @@ bgg_id,name,udo_bartsch,johanna_france,tobias_franke,manuel_fritsch,martina_fuch
 397736,HITSTER: Guilty Pleasures ,,,,,,,,,,,8,9,,
 410209,HITSTER: Summer Party,,,,,,,,,,,8,9,,
 431248,For a Crown,5,7,,,,,,,,,7,8,,
-421199,Link City,,,,,,,,,,,,8,,
+421199,Link City,5,,,,,,,,,,,8,,
 431652,Komm zum Punkt,,,,,,,,,,,,8,,
 416851,Castle Combo,,,,,,,,,,,,7,,
 420087,Flip 7,,,,,,,,,,,,7,,
@@ -131,3 +131,6 @@ bgg_id,name,udo_bartsch,johanna_france,tobias_franke,manuel_fritsch,martina_fuch
 402283,Courtisans,6,6,,7,,,7,5,,,,7,,
 400276,Moving Day,5,,,5,,,,6,,,5,,,
 352418,Fliptown,,,,5,,,,5,,,5,,,
+368305,Life of the Amazonia,,,,,,,,,,,,,,
+359124,The Animals of Baker Street,,,,,,,,,,,,,,
+419130,HUTAN: Life in the Rainforest,,,,,,,,,,,,,,
