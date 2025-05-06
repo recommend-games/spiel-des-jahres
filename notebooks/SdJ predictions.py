@@ -42,4 +42,37 @@ candidates = fetch_all_candidates(
 candidates.shape
 
 # %%
-candidates
+weights = {
+    "rec_score_s_d_j": 14.0,
+    "rec_score_udo_bartsch": 1.0,
+    "rec_score_johanna_france": 1.0,
+    "rec_score_tobias_franke": 1.0,
+    "rec_score_manuel_fritsch": 1.0,
+    "rec_score_martina_fuchs": 1.0,
+    "rec_score_karsten_grosser": 1.0,
+    "rec_score_maren_hoffmann": 1.0,
+    "rec_score_stephan_kessler": 1.0,
+    "rec_score_tim_koch": 1.0,
+    "rec_score_michaela_poignee": 1.0,
+    "rec_score_christoph_schlewinski": 1.0,
+    "rec_score_harald_schrapers": 1.0,
+    "rec_score_nico_wagner": 1.0,
+    "rec_score_julia_zerlik": 1.0,
+}
+sum_weights = sum(weights.values())
+len(weights), sum_weights
+
+# %%
+candidates = candidates.with_columns(
+    score=sum(pl.col(col) * weight for col, weight in weights.items()) / sum_weights,
+)
+candidates.shape
+
+# %%
+candidates.sort("score", descending=True).head(100)
+
+# %%
+candidates.sort("kennerspiel", "score", descending=[False, True]).write_csv(
+    "candidates.csv",
+    float_precision=5,
+)
