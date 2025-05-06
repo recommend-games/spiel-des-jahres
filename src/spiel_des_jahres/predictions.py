@@ -4,6 +4,7 @@ import logging
 from copy import deepcopy
 from datetime import date
 from itertools import islice
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import polars as pl
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 BASE_URL = "https://recommend.games"
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
 
 def _recommend_games(
@@ -145,4 +147,54 @@ def fetch_candidates(
             rec_rank=pl.col("rec_rating").rank(method="max").over("kennerspiel")
             / pl.len().over("kennerspiel"),
         )
+    )
+
+
+def fetch_all_candidates(
+    year: int,
+    main_user: str = "s_d_j",
+    # jury_member_prefix: str = "s_d_j_",
+    kennerspiel_cutoff_score: float = 0.5,
+    max_results: int | None = 25,
+    base_url: str = BASE_URL,
+    timeout: float = 60,
+    max_exclude_games: int = 250,
+) -> pl.LazyFrame:
+    """Fetch all candidates from the recommendation API."""
+
+    reviews = pl.read_csv(DATA_DIR / str(year) / "reviews.csv")
+    include = reviews["bgg_id"]
+    # jury_members = reviews.select(pl.exclude("bgg_id", "name")).columns
+    del reviews
+
+    exclude = (
+        pl.scan_csv(DATA_DIR / str(year) / "exclude.csv")
+        .select("bgg_id")
+        .collect()["bgg_id"]
+    )
+    prev_awards = (
+        pl.scan_csv(
+            [DATA_DIR / "sdj.csv", DATA_DIR / "ksdj.csv", DATA_DIR / "kindersdj.csv"],
+        )
+        .sort("jahrgang", descending=True)
+        .filter(pl.col("jahrgang") < year)
+        .select("bgg_id")
+        .collect()["bgg_id"]
+    )
+    exclude = (
+        pl.concat([exclude, prev_awards], how="vertical_relaxed")
+        .unique(maintain_order=True)
+        .head(max_exclude_games)
+    )
+    del prev_awards
+
+    return fetch_candidates(
+        user_name=main_user,
+        year=year,
+        bgg_ids_include=include,
+        bgg_ids_exclude=exclude,
+        kennerspiel_cutoff_score=kennerspiel_cutoff_score,
+        max_results=max_results,
+        base_url=base_url,
+        timeout=timeout,
     )
