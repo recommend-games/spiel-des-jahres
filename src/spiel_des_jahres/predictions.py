@@ -30,7 +30,7 @@ def _recommend_games(
     params.setdefault("page", 1)
 
     while True:
-        LOGGER.info("Requesting page %d", params["page"])
+        LOGGER.debug("Requesting page %d", params["page"])
 
         try:
             response = requests.get(
