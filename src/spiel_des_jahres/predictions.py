@@ -226,7 +226,7 @@ def fetch_all_candidates(
         .head(max_exclude_games)
     )
 
-    del prev_awards
+    del prev_awards, prev_reviews
 
     LOGGER.info("Fetching candidates for %s", main_user)
     result = fetch_candidates(
@@ -238,6 +238,7 @@ def fetch_all_candidates(
         max_results=max_results,
         base_url=base_url,
         timeout=timeout,
+        request_params={"exclude_known": True},
         progress_bar=progress_bar,
     )
 
