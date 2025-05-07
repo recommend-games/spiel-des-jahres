@@ -159,7 +159,7 @@ def fetch_candidates(
             kennerspiel=pl.col("kennerspiel_score") > kennerspiel_cutoff_score,
         )
         .with_columns(
-            rec_score=pl.col("rec_rating").rank(method="max").over("kennerspiel")
+            rec_rel_rank=pl.col("rec_rating").rank(method="max").over("kennerspiel")
             / pl.len().over("kennerspiel"),
         )
     )
@@ -230,7 +230,7 @@ def fetch_all_candidates(
             base_url=base_url,
             timeout=timeout,
             progress_bar=progress_bar,
-        ).select("bgg_id", "rec_rating", "rec_score")
+        ).select("bgg_id", "rec_rating", "rec_rel_rank")
 
         result = result.join(
             results_jury_member,
@@ -242,6 +242,6 @@ def fetch_all_candidates(
     return result.rename(
         {
             "rec_rating": f"rec_rating_{main_user}",
-            "rec_score": f"rec_score_{main_user}",
+            "rec_rel_rank": f"rec_rel_rank_{main_user}",
         },
     )
