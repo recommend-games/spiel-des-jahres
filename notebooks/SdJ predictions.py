@@ -39,7 +39,7 @@ predictions = sdj_predictions(
     year=2025,
     main_user_weights={"rec_standard": 14.0},
     jury_member_weights={"rec_standard": 1.0},
-    max_results=100,
+    max_results=None,
     progress_bar=True,
 ).collect()
 predictions.shape

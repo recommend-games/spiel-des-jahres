@@ -94,7 +94,7 @@ def recommend_games(
         results = tqdm(
             results,
             desc="Fetching recommendations",
-            unit="game",
+            unit=" game(s)",
             total=max_results,
         )
 
