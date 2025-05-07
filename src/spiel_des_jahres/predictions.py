@@ -190,16 +190,26 @@ def fetch_all_candidates(
 ) -> tuple[list[str], pl.LazyFrame]:
     """Fetch all candidates from the recommendation API."""
 
-    reviews = pl.read_csv(DATA_DIR / str(year) / "reviews.csv")
+    reviews_path = DATA_DIR / str(year) / "reviews.csv"
+    LOGGER.info("Reading reviews from %s", reviews_path)
+    reviews = pl.read_csv(reviews_path)
     include = reviews["bgg_id"]
     jury_members = reviews.select(pl.exclude("bgg_id", "name")).columns
     del reviews
 
-    exclude = (
-        pl.scan_csv(DATA_DIR / str(year) / "exclude.csv")
-        .select("bgg_id")
-        .collect()["bgg_id"]
-    )
+    exclude_path = DATA_DIR / str(year) / "exclude.csv"
+    LOGGER.info("Reading exclude from %s", exclude_path)
+    exclude = pl.scan_csv(exclude_path).select("bgg_id").collect()["bgg_id"]
+
+    prev_reviews_path = DATA_DIR / str(year - 1) / "reviews.csv"
+    if prev_reviews_path.exists():
+        LOGGER.info("Reading previous reviews from %s", prev_reviews_path)
+        prev_reviews = (
+            pl.scan_csv(prev_reviews_path).select("bgg_id").collect()["bgg_id"]
+        )
+    else:
+        prev_reviews = pl.Series(name="bgg_id", values=[], dtype=pl.Int64)
+
     prev_awards = (
         pl.scan_csv(
             [DATA_DIR / "sdj.csv", DATA_DIR / "ksdj.csv", DATA_DIR / "kindersdj.csv"],
@@ -209,11 +219,13 @@ def fetch_all_candidates(
         .select("bgg_id")
         .collect()["bgg_id"]
     )
+
     exclude = (
-        pl.concat([exclude, prev_awards], how="vertical")
+        pl.concat([exclude, prev_reviews, prev_awards], how="vertical")
         .unique(maintain_order=True)
         .head(max_exclude_games)
     )
+
     del prev_awards
 
     LOGGER.info("Fetching candidates for %s", main_user)
