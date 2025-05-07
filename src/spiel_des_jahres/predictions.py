@@ -161,6 +161,17 @@ def fetch_candidates(
         .with_columns(
             rec_rel_rank=pl.col("rec_rating").rank(method="max").over("kennerspiel")
             / pl.len().over("kennerspiel"),
+            rec_min_max=(
+                pl.col("rec_rating") - pl.col("rec_rating").min().over("kennerspiel")
+            )
+            / (
+                pl.col("rec_rating").max().over("kennerspiel")
+                - pl.col("rec_rating").min().over("kennerspiel")
+            ),
+            rec_standard=(
+                pl.col("rec_rating") - pl.col("rec_rating").mean().over("kennerspiel")
+            )
+            / pl.col("rec_rating").std().over("kennerspiel"),
         )
     )
 
@@ -230,7 +241,7 @@ def fetch_all_candidates(
             base_url=base_url,
             timeout=timeout,
             progress_bar=progress_bar,
-        ).select("bgg_id", "rec_rating", "rec_rel_rank")
+        ).select("bgg_id", "rec_rating", "rec_rel_rank", "rec_min_max", "rec_standard")
 
         result = result.join(
             results_jury_member,
@@ -243,5 +254,7 @@ def fetch_all_candidates(
         {
             "rec_rating": f"rec_rating_{main_user}",
             "rec_rel_rank": f"rec_rel_rank_{main_user}",
+            "rec_min_max": f"rec_min_max_{main_user}",
+            "rec_standard": f"rec_standard_{main_user}",
         },
     )
