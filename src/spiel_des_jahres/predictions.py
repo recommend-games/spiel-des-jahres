@@ -11,7 +11,7 @@ import polars as pl
 import requests
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterable
+    from collections.abc import Generator, Iterable, Mapping
     from typing import Any
 
 LOGGER = logging.getLogger(__name__)
@@ -187,7 +187,7 @@ def fetch_all_candidates(
     timeout: float = 60,
     max_exclude_games: int = 250,
     progress_bar: bool = False,
-) -> pl.LazyFrame:
+) -> tuple[list[str], pl.LazyFrame]:
     """Fetch all candidates from the recommendation API."""
 
     reviews = pl.read_csv(DATA_DIR / str(year) / "reviews.csv")
@@ -250,11 +250,75 @@ def fetch_all_candidates(
             suffix=f"_{jury_member}",
         )
 
-    return result.rename(
+    return jury_members, result.rename(
         {
             "rec_rating": f"rec_rating_{main_user}",
             "rec_rel_rank": f"rec_rel_rank_{main_user}",
             "rec_min_max": f"rec_min_max_{main_user}",
             "rec_standard": f"rec_standard_{main_user}",
         },
+    )
+
+
+def sdj_predictions(
+    year: int,
+    *,
+    main_user: str = "s_d_j",
+    main_user_weights: Mapping[str, float] | None = None,
+    jury_member_prefix: str = "s_d_j_",
+    jury_member_weights: Mapping[str, float] | None = None,
+    kennerspiel_cutoff_score: float = 0.5,
+    max_results: int | None = 25,
+    base_url: str = BASE_URL,
+    timeout: float = 60,
+    max_exclude_games: int = 250,
+    progress_bar: bool = False,
+) -> pl.LazyFrame:
+    """Predict the Spiel des Jahres winner."""
+
+    jury_members, candidates = fetch_all_candidates(
+        year=year,
+        main_user=main_user,
+        jury_member_prefix=jury_member_prefix,
+        kennerspiel_cutoff_score=kennerspiel_cutoff_score,
+        max_results=max_results,
+        base_url=base_url,
+        timeout=timeout,
+        max_exclude_games=max_exclude_games,
+        progress_bar=progress_bar,
+    )
+
+    main_user_weights = main_user_weights or {}
+    jury_member_weights = jury_member_weights or {}
+
+    main_user_weights = {
+        f"{col}_{main_user}": weight for col, weight in main_user_weights.items()
+    }
+    jury_member_weights = {
+        f"{col}_{jury_member}": weight
+        for col, weight in jury_member_weights.items()
+        for jury_member in jury_members
+    }
+    weights = main_user_weights | jury_member_weights
+    total_weight = sum(weights.values())
+
+    if total_weight == 0:
+        return candidates.with_columns(
+            sdj_score=pl.lit(None),
+            sdj_rank=pl.lit(None),
+        )
+
+    return (
+        candidates.with_columns(
+            sdj_score=pl.sum_horizontal(
+                pl.col(col) * weight for col, weight in weights.items()
+            )
+            / total_weight,
+        )
+        .with_columns(
+            sdj_rank=pl.col("sdj_score")
+            .rank(method="min", descending=True)
+            .over("kennerspiel"),
+        )
+        .sort("kennerspiel", "sdj_rank")
     )

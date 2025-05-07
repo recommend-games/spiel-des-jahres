@@ -108,7 +108,7 @@ classmethod-decorators = [
 ]
 
 [tool.ruff.lint.pylint]
-max-args = 10
+max-args = 20
 
 [tool.pytest.ini_options]
 addopts = """\
