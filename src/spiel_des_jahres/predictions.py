@@ -190,16 +190,9 @@ def fetch_all_candidates(
 ) -> tuple[list[str], pl.LazyFrame]:
     """Fetch all candidates from the recommendation API."""
 
-    reviews_path = DATA_DIR / str(year) / "reviews.csv"
-    LOGGER.info("Reading reviews from %s", reviews_path)
-    reviews = pl.read_csv(reviews_path)
-    include = reviews["bgg_id"]
-    jury_members = reviews.select(pl.exclude("bgg_id", "name")).columns
-    del reviews
-
     exclude_path = DATA_DIR / str(year) / "exclude.csv"
     LOGGER.info("Reading exclude from %s", exclude_path)
-    exclude = pl.scan_csv(exclude_path).select("bgg_id").collect()["bgg_id"]
+    exclude_explicit = pl.scan_csv(exclude_path).select("bgg_id").collect()["bgg_id"]
 
     prev_reviews_path = DATA_DIR / str(year - 1) / "reviews.csv"
     if prev_reviews_path.exists():
@@ -210,6 +203,7 @@ def fetch_all_candidates(
     else:
         prev_reviews = pl.Series(name="bgg_id", values=[], dtype=pl.Int64)
 
+    LOGGER.info("Fetching previous awards from %s", DATA_DIR)
     prev_awards = (
         pl.scan_csv(
             [DATA_DIR / "sdj.csv", DATA_DIR / "ksdj.csv", DATA_DIR / "kindersdj.csv"],
@@ -220,13 +214,22 @@ def fetch_all_candidates(
         .collect()["bgg_id"]
     )
 
-    exclude = (
-        pl.concat([exclude, prev_reviews, prev_awards], how="vertical")
-        .unique(maintain_order=True)
-        .head(max_exclude_games)
-    )
+    exclude = pl.concat(
+        [exclude_explicit, prev_reviews, prev_awards],
+        how="vertical",
+    ).unique(maintain_order=True)
+    del exclude_explicit, prev_awards, prev_reviews
 
-    del prev_awards, prev_reviews
+    curr_reviews_path = DATA_DIR / str(year) / "reviews.csv"
+    LOGGER.info("Reading current reviews from %s", curr_reviews_path)
+    curr_reviews = pl.read_csv(curr_reviews_path)
+    include = curr_reviews.remove(pl.col("bgg_id").is_in(exclude))["bgg_id"]
+    jury_members = curr_reviews.select(pl.exclude("bgg_id", "name")).columns
+    del curr_reviews
+
+    LOGGER.info("Including %d games", len(include))
+    exclude = exclude.head(max_exclude_games)
+    LOGGER.info("Excluding %d games", len(exclude))
 
     LOGGER.info("Fetching candidates for %s", main_user)
     result = fetch_candidates(
