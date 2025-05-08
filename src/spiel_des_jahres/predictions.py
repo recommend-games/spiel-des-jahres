@@ -122,8 +122,6 @@ def fetch_candidates(
     params["year__gte"] = year - 1
     params["year__lte"] = year
 
-    params.setdefault("num_votes__gte", 1)
-    params.setdefault("kennerspiel_score__gte", 0.0)
     params.setdefault("exclude_clusters", False)
     params.setdefault("exclude_known", False)
     params.setdefault("exclude_owned", False)
