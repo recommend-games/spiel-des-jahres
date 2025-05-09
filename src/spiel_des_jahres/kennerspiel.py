@@ -20,7 +20,7 @@ from sklearn.preprocessing import FunctionTransformer
 if TYPE_CHECKING:
     from typing import Any
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
+PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = PROJECT_DIR / "data"
 SCRAPED_DIR = PROJECT_DIR.parent / "board-game-data" / "scraped"
 
