@@ -306,7 +306,7 @@ css = ["tinycss2 (>=1.1.0,<1.5)"]
 name = "board-game-recommender"
 version = "4.0.0"
 description = "Board game recommendation engine"
-optional = false
+optional = true
 python-versions = "<4.0,>=3.9.0"
 files = [
     {file = "board_game_recommender-4.0.0-py3-none-any.whl", hash = "sha256:7a25402ebe89e14605ddef22b0bf445b8f0441b74c15920b4c64102ce23b5fe9"},
@@ -2309,7 +2309,7 @@ test = ["pytest", "pytest-console-scripts", "pytest-jupyter", "pytest-tornasync"
 name = "numpy"
 version = "2.2.5"
 description = "Fundamental package for array computing in Python"
-optional = false
+optional = true
 python-versions = ">=3.10"
 files = [
     {file = "numpy-2.2.5-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:1f4a922da1729f4c40932b2af4fe84909c7a6e167e6e99f71838ce3a29f3fe26"},
@@ -2651,7 +2651,7 @@ testing = ["pytest", "pytest-benchmark"]
 name = "polars"
 version = "1.29.0"
 description = "Blazingly fast DataFrame library"
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "polars-1.29.0-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:d053ee3217df31468caf2f5ddb9fd0f3a94fd42afdf7d9abe23d9d424adca02b"},
@@ -3930,7 +3930,7 @@ files = [
 name = "tqdm"
 version = "4.67.1"
 description = "Fast, Extensible Progress Meter"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "tqdm-4.67.1-py3-none-any.whl", hash = "sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2"},
@@ -4269,9 +4269,10 @@ test = ["coverage[toml]", "zope.event", "zope.testing"]
 testing = ["coverage[toml]", "zope.event", "zope.testing"]
 
 [extras]
+predictions = ["board-game-recommender", "polars", "tqdm"]
 scraper = ["beautifulsoup4", "openai", "polars", "scrapy"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10.0, <4.0"
-content-hash = "831dba5431bc9cca86322daf8604d1611459c91b8d3e0560c03278fb59a70db2"
+content-hash = "83463c629dc9503f35965efff0a90f63a8f6a00779754c2fdc816faba40e1608"

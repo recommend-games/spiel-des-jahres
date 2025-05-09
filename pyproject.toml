@@ -32,14 +32,12 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.10.0, <4.0"
 
-board-game-recommender = "4.*"
-requests = "*"
-tqdm = "*"
-
 beautifulsoup4 = {version = ">=4.12.0, <5.0", optional = true}
+board-game-recommender = {version = ">=4.0.0, <5.0", optional = true}
 openai = {version = ">=1.0.0, <2.0.0", optional = true}
 polars = {version = ">=1.0.0, <2.0.0", optional = true}
 scrapy = {version = ">=2.11.0, <3.0", optional = true}
+tqdm = {version = "*", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 ipython = "*"
@@ -61,6 +59,7 @@ types-tqdm = "*"
 
 [tool.poetry.extras]
 scraper = ["beautifulsoup4", "openai", "polars", "scrapy"]
+predictions = ["board-game-recommender", "polars", "tqdm"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
