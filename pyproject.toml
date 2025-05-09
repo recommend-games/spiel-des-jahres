@@ -33,8 +33,14 @@ packages = [
 python = ">=3.10.0, <4.0"
 
 beautifulsoup4 = {version = ">=4.12.0, <5.0", optional = true}
+funcy = {version = ">=2.0.0, <3.0.0", optional = true}
+joblib = {version = ">=1.0.0, <2.0.0", optional = true}
+numpy = {version = ">=2.0.0, <3.0.0", optional = true}
 openai = {version = ">=1.0.0, <2.0.0", optional = true}
+pandas = {version = ">=2.0.0, <3.0.0", optional = true}
 polars = {version = ">=1.0.0, <2.0.0", optional = true}
+scipy = {version = ">=1.0.0, <2.0.0", optional = true}
+scikit-learn = {version = ">=1.0.0, <2.0.0", optional = true}
 scrapy = {version = ">=2.11.0, <3.0", optional = true}
 
 [tool.poetry.group.dev.dependencies]
@@ -50,6 +56,7 @@ python-kacl = "*"
 ruff = ">=0.2.0"
 
 [tool.poetry.extras]
+kennerspiel = ["funcy", "joblib", "numpy", "pandas", "scikit-learn", "scipy"]
 scraper = ["beautifulsoup4", "openai", "polars", "scrapy"]
 
 [build-system]
