@@ -82,5 +82,8 @@ venv.bak/
 .jobs/
 results/
 
+# Jupyter
+*.ipynb
+
 # Misc
 .~*
