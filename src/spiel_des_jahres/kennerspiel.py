@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from itertools import chain
 from typing import TYPE_CHECKING
 
@@ -15,13 +16,26 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from typing import Any
 
 
-def _parse_list(value: str | Iterable[str], prefix: str | None = None) -> list[str]:
+def _arg_to_iter(value: Any) -> Iterable[Any]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, Iterable):
+        return value
+    return (value,)
+
+
+def _parse_list(
+    value: str | Iterable[str] | None,
+    prefix: str | None = None,
+) -> list[str]:
     if isinstance(value, str):
         value = value.split(",")
-    values = funcy.distinct(value)
+    values = funcy.distinct(_arg_to_iter(value))
     return [f"{prefix}{v}" for v in values] if prefix else list(values)
 
 
@@ -87,7 +101,7 @@ def make_transformer(
                     dtype=np.bool_,
                 ),
             ),
-            ("todense", FunctionTransformer(csr_matrix.todense)),
+            ("todense", FunctionTransformer(csr_matrix.toarray)),
         ],
     )
 
@@ -112,13 +126,14 @@ def make_transformer(
             ("playable_transformer", playable_transformer, player_count_columns),
         ],
         remainder="passthrough",
+        force_int_remainder_cols=False,
     )
 
 
 def train_model(
     data: pd.DataFrame,
     *,
-    target_col: str = "ksdj",
+    target_col: str = "kennerspiel",
     numeric_columns: Iterable[str] | str = (
         "min_age",
         "min_time",
