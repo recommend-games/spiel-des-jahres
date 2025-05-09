@@ -135,7 +135,7 @@ exclude = [
 # add overrides for them. Avoid changing the global config!
 # For example:
 [[tool.mypy.overrides]]
-module = "sklearn.*"
+module = ["joblib.*", "sklearn.*"]
 ignore_missing_imports = true
 
 # [[tool.mypy.overrides]]
