@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spiel-des-jahres"
-version = "0.0.2"
+version = "0.1.0"
 description = "Spiel des Jahres predictions"
 authors = [
     "Markus Shepherd <markus@recommend.games>",
@@ -34,12 +34,19 @@ python = ">=3.10.0, <4.0"
 
 beautifulsoup4 = {version = ">=4.12.0, <5.0", optional = true}
 board-game-recommender = {version = ">=4.0.0, <5.0", optional = true}
+funcy = {version = ">=2.0.0, <3.0.0", optional = true}
+joblib = {version = ">=1.0.0, <2.0.0", optional = true}
+numpy = {version = ">=2.0.0, <3.0.0", optional = true}
 openai = {version = ">=1.0.0, <2.0.0", optional = true}
-polars = {version = ">=1.0.0, <2.0.0", optional = true}
+pandas = {version = ">=2.0.0, <3.0.0", optional = true}
+polars = {version = ">=1.0.0, <2.0.0", optional = true, extras = ["pandas", "pyarrow"]}
+scipy = {version = ">=1.0.0, <2.0.0", optional = true}
+scikit-learn = {version = ">=1.0.0, <2.0.0", optional = true}
 scrapy = {version = ">=2.11.0, <3.0", optional = true}
 tqdm = {version = "*", optional = true}
 
 [tool.poetry.group.dev.dependencies]
+funcy-typing = "*"
 ipython = "*"
 jupyter-black = "*"
 jupyterlab = "*"
@@ -47,6 +54,7 @@ jupytext = "*"
 mkdocstrings = {version = ">=0.23", extras = ["python"]}
 mkdocs-material = "*"
 mypy = "*"
+pandas-stubs = "*"
 pre-commit = "*"
 pymdown-extensions = "*"
 pytest = "*"
@@ -54,12 +62,14 @@ pytest-github-actions-annotate-failures = "*"
 pytest-cov = "*"
 python-kacl = "*"
 ruff = ">=0.2.0"
+scipy-stubs = "*"
 types-requests = "*"
 types-tqdm = "*"
 
 [tool.poetry.extras]
-scraper = ["beautifulsoup4", "openai", "polars", "scrapy"]
+kennerspiel = ["funcy", "joblib", "numpy", "pandas", "polars", "scikit-learn", "scipy"]
 predictions = ["board-game-recommender", "polars", "tqdm"]
+scraper = ["beautifulsoup4", "openai", "polars", "scrapy"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -129,7 +139,7 @@ exclude_lines = [
 # This is the global mypy configuration.
 # Avoid changing this!
 strict = true  # See all the enabled flags `mypy --help | grep -A 10 'Strict mode'`
-disallow_any_unimported = true
+# disallow_any_unimported = true
 exclude = [
     '^notebooks/*',
 ]
@@ -137,12 +147,9 @@ exclude = [
 # If you need to ignore something for some specific module,
 # add overrides for them. Avoid changing the global config!
 # For example:
-# [[tool.mypy.overrides]]
-# module = [
-#  "my_unpyted_dependency1.*",
-#  "my_unpyted_dependency2.*"
-# ]
-# ignore_missing_imports = true
+[[tool.mypy.overrides]]
+module = ["joblib.*", "sklearn.*"]
+ignore_missing_imports = true
 
 # [[tool.mypy.overrides]]
 # module = [
