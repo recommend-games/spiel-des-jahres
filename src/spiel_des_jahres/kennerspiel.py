@@ -9,6 +9,8 @@ import pandas as pd
 from scipy.sparse import csr_matrix
 from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegressionCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 
@@ -111,3 +113,61 @@ def make_transformer(
         ],
         remainder="passthrough",
     )
+
+
+def train_model(
+    data: pd.DataFrame,
+    *,
+    target_col: str = "ksdj",
+    numeric_columns: Iterable[str] | str = (
+        "min_age",
+        "min_time",
+        "max_time",
+        "cooperative",
+        "complexity",
+    ),
+    list_columns: Iterable[str] | str = (
+        "game_type",
+        "mechanic",
+        "category",
+    ),
+    player_count_columns: Iterable[str] | str = (
+        "min_players",
+        "max_players",
+    ),
+) -> Pipeline:
+    numeric_columns = (
+        [numeric_columns] if isinstance(numeric_columns, str) else list(numeric_columns)
+    )
+    list_columns = (
+        [list_columns] if isinstance(list_columns, str) else list(list_columns)
+    )
+    player_count_columns = (
+        [player_count_columns]
+        if isinstance(player_count_columns, str)
+        else list(player_count_columns)
+    )
+    features = numeric_columns + list_columns + player_count_columns
+
+    transformer = make_transformer(
+        list_columns=list_columns,
+        player_count_columns=player_count_columns,
+        min_df=0.1,
+    )
+
+    imputer = SimpleImputer()
+    classifier = LogisticRegressionCV(
+        class_weight="balanced",
+        scoring="f1",
+        max_iter=10_000,
+    )
+
+    pipeline = Pipeline(
+        [
+            ("transformer", transformer),
+            ("imputer", imputer),
+            ("classifier", classifier),
+        ],
+    )
+    pipeline.fit(data[features], data[target_col])
+    return pipeline
