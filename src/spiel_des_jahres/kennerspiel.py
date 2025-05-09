@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from itertools import chain
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import funcy
 import numpy as np
 import pandas as pd
+import polars as pl
 from scipy.sparse import csr_matrix
 from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import CountVectorizer
@@ -17,6 +19,12 @@ from sklearn.preprocessing import FunctionTransformer
 
 if TYPE_CHECKING:
     from typing import Any
+
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_DIR / "data"
+SCRAPED_DIR = PROJECT_DIR.parent / "board-game-data" / "scraped"
+
+FIRST_KENNERSPIEL_JAHRGANG = 2011
 
 
 def _arg_to_iter(value: Any) -> Iterable[Any]:
@@ -186,3 +194,40 @@ def train_model(
     )
     pipeline.fit(data[features], data[target_col])
     return pipeline
+
+
+def load_games(
+    games_path: Path = SCRAPED_DIR / "bgg_GameItem.csv",
+    spiel_path: Path = DATA_DIR / "sdj.csv",
+    kennerspiel_path: Path = DATA_DIR / "ksdj.csv",
+    kennerspiel_sonderpreis: Iterable[str] | None = (
+        "Complex Game",
+        "Fantasy Game",
+        "Game of the Year Plus",
+        "New Worlds Game",
+    ),
+) -> pl.LazyFrame:
+    spiel = (
+        pl.scan_csv(spiel_path)
+        .with_columns(
+            kennerspiel=pl.lit(value=False)
+            if kennerspiel_sonderpreis is None
+            else pl.col("sonderpreis").is_in(frozenset(kennerspiel_sonderpreis)),
+        )
+        .filter(
+            (pl.col("jahrgang") > FIRST_KENNERSPIEL_JAHRGANG)
+            | (
+                (pl.col("jahrgang") == FIRST_KENNERSPIEL_JAHRGANG)
+                & (pl.col("nominated") == 1)
+            )
+            | pl.col("kennerspiel"),
+        )
+        .select("bgg_id", pl.col("kennerspiel").fill_null(value=False))
+    )
+    kennerspiel = pl.scan_csv(kennerspiel_path).select("bgg_id", kennerspiel=True)
+    sdj = pl.concat([spiel, kennerspiel])
+    return pl.scan_csv(games_path, infer_schema_length=None).join(
+        sdj,
+        on="bgg_id",
+        how="inner",
+    )
