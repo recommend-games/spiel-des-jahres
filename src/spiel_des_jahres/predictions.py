@@ -309,6 +309,7 @@ def load_candidates(
     recommender_model: BaseGamesRecommender[int, str] | Path | str,
     main_user: str = "s_d_j",
     jury_member_prefix: str = "s_d_j_",
+    kennerspiel_cutoff_score: float = 0.5,
 ) -> tuple[list[str], pl.LazyFrame]:
     include, exclude, jury_members = include_exclude_jury_members(year)
 
@@ -332,8 +333,16 @@ def load_candidates(
         "kennerspiel_model must be an sklearn estimator"
     )
 
-    games = games.with_columns(
-        kennerspiel=kennerspiel_model.predict(games.to_pandas()),
+    kennerspiel_scores = kennerspiel_model.predict_proba(games.to_pandas())[:, 1]
+
+    games_with_kennerspiel = (
+        games.lazy()
+        .with_columns(
+            kennerspiel_score=kennerspiel_scores,
+        )
+        .with_columns(
+            kennerspiel=pl.col("kennerspiel_score") > kennerspiel_cutoff_score,
+        )
     )
 
     recommender_model = (
@@ -358,7 +367,7 @@ def load_candidates(
     )
 
     rec_ratings_df = pl.LazyFrame(rec_ratings, schema=cols)
-    result = pl.concat([games.lazy(), rec_ratings_df], how="horizontal")
+    result = pl.concat([games_with_kennerspiel, rec_ratings_df], how="horizontal")
 
     for jury_member in [main_user, *jury_members]:
         result = _add_rel_columns(result, col_suffix=f"_{jury_member}")
