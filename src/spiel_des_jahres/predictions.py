@@ -342,6 +342,7 @@ def load_candidates(
     LOGGER.info("Reading games from <%s>", games_path)
     games = (
         pl.scan_csv(games_path, infer_schema_length=None)
+        .filter(pl.col("bgg_id").is_in(recommender_model.known_games))
         .filter(
             pl.col("year").is_between(year - 1, year) | pl.col("bgg_id").is_in(include),
         )
