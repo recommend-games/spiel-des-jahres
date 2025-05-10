@@ -106,6 +106,32 @@ def recommend_games(
     yield from results
 
 
+def _add_rel_columns(candidates: pl.LazyFrame, col_suffix: str = "") -> pl.LazyFrame:
+    return candidates.with_columns(
+        (
+            pl.col(f"rec_rating{col_suffix}").rank(method="max").over("kennerspiel")
+            / pl.len().over("kennerspiel")
+        ).alias(f"rec_rel_rank{col_suffix}"),
+        (
+            (
+                pl.col(f"rec_rating{col_suffix}")
+                - pl.col(f"rec_rating{col_suffix}").min().over("kennerspiel")
+            )
+            / (
+                pl.col(f"rec_rating{col_suffix}").max().over("kennerspiel")
+                - pl.col(f"rec_rating{col_suffix}").min().over("kennerspiel")
+            )
+        ).alias(f"rec_min_max{col_suffix}"),
+        (
+            (
+                pl.col(f"rec_rating{col_suffix}")
+                - pl.col(f"rec_rating{col_suffix}").mean().over("kennerspiel")
+            )
+            / pl.col(f"rec_rating{col_suffix}").std().over("kennerspiel")
+        ).alias(f"rec_standard{col_suffix}"),
+    )
+
+
 def fetch_candidates(
     *,
     user_name: str = "s_d_j",
@@ -144,7 +170,7 @@ def fetch_candidates(
         progress_bar=progress_bar,
     )
 
-    return (
+    data = (
         pl.LazyFrame(candidates)
         .select(
             "bgg_id",
@@ -161,22 +187,9 @@ def fetch_candidates(
         .with_columns(
             kennerspiel=pl.col("kennerspiel_score") > kennerspiel_cutoff_score,
         )
-        .with_columns(
-            rec_rel_rank=pl.col("rec_rating").rank(method="max").over("kennerspiel")
-            / pl.len().over("kennerspiel"),
-            rec_min_max=(
-                pl.col("rec_rating") - pl.col("rec_rating").min().over("kennerspiel")
-            )
-            / (
-                pl.col("rec_rating").max().over("kennerspiel")
-                - pl.col("rec_rating").min().over("kennerspiel")
-            ),
-            rec_standard=(
-                pl.col("rec_rating") - pl.col("rec_rating").mean().over("kennerspiel")
-            )
-            / pl.col("rec_rating").std().over("kennerspiel"),
-        )
     )
+
+    return _add_rel_columns(data)
 
 
 def include_exclude_jury_members(
