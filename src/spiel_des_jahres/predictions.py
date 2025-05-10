@@ -174,34 +174,23 @@ def fetch_candidates(
     )
 
 
-def fetch_all_candidates(
+def include_exclude_jury_members(
     year: int,
-    *,
-    main_user: str = "s_d_j",
-    jury_member_prefix: str = "s_d_j_",
-    kennerspiel_cutoff_score: float = 0.5,
-    max_results: int | None = 25,
-    base_url: str = BASE_URL,
-    timeout: float = 60,
-    max_exclude_games: int = 250,
-    progress_bar: bool = False,
-) -> tuple[list[str], pl.LazyFrame]:
-    """Fetch all candidates from the recommendation API."""
-
+) -> tuple[pl.Series, pl.Series, list[str]]:
     exclude_path = DATA_DIR / str(year) / "exclude.csv"
-    LOGGER.info("Reading exclude from %s", exclude_path)
+    LOGGER.info("Reading exclude from <%s>", exclude_path)
     exclude_explicit = pl.scan_csv(exclude_path).select("bgg_id").collect()["bgg_id"]
 
     prev_reviews_path = DATA_DIR / str(year - 1) / "reviews.csv"
     if prev_reviews_path.exists():
-        LOGGER.info("Reading previous reviews from %s", prev_reviews_path)
+        LOGGER.info("Reading previous reviews from <%s>", prev_reviews_path)
         prev_reviews = (
             pl.scan_csv(prev_reviews_path).select("bgg_id").collect()["bgg_id"]
         )
     else:
         prev_reviews = pl.Series(name="bgg_id", values=[], dtype=pl.Int64)
 
-    LOGGER.info("Fetching previous awards from %s", DATA_DIR)
+    LOGGER.info("Fetching previous awards from <%s>", DATA_DIR)
     prev_awards = (
         pl.scan_csv(
             [DATA_DIR / "sdj.csv", DATA_DIR / "ksdj.csv", DATA_DIR / "kindersdj.csv"],
@@ -219,11 +208,30 @@ def fetch_all_candidates(
     del exclude_explicit, prev_awards, prev_reviews
 
     curr_reviews_path = DATA_DIR / str(year) / "reviews.csv"
-    LOGGER.info("Reading current reviews from %s", curr_reviews_path)
+    LOGGER.info("Reading current reviews from <%s>", curr_reviews_path)
     curr_reviews = pl.read_csv(curr_reviews_path)
     include = curr_reviews.remove(pl.col("bgg_id").is_in(exclude))["bgg_id"]
     jury_members = curr_reviews.select(pl.exclude("bgg_id", "name")).columns
     del curr_reviews
+
+    return include, exclude, jury_members
+
+
+def fetch_all_candidates(
+    year: int,
+    *,
+    main_user: str = "s_d_j",
+    jury_member_prefix: str = "s_d_j_",
+    kennerspiel_cutoff_score: float = 0.5,
+    max_results: int | None = 25,
+    base_url: str = BASE_URL,
+    timeout: float = 60,
+    max_exclude_games: int = 250,
+    progress_bar: bool = False,
+) -> tuple[list[str], pl.LazyFrame]:
+    """Fetch all candidates from the recommendation API."""
+
+    include, exclude, jury_members = include_exclude_jury_members(year)
 
     LOGGER.info("Including %d games", len(include))
     exclude = exclude.head(max_exclude_games)
