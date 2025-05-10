@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 BASE_URL = "https://recommend.games"
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = PROJECT_DIR / "data"
 SCRAPED_DIR = PROJECT_DIR.parent / "board-game-data" / "scraped"
 
@@ -333,7 +333,7 @@ def load_candidates(
     )
 
     games = games.with_columns(
-        kennerspiel=kennerspiel_model.predict(games),
+        kennerspiel=kennerspiel_model.predict(games.to_pandas()),
     )
 
     recommender_model = (
@@ -361,7 +361,7 @@ def load_candidates(
     result = pl.concat([games.lazy(), rec_ratings_df], how="horizontal")
 
     for jury_member in [main_user, *jury_members]:
-        result = _add_rel_columns(result, col_suffix=jury_member)
+        result = _add_rel_columns(result, col_suffix=f"_{jury_member}")
 
     return jury_members, result
 
