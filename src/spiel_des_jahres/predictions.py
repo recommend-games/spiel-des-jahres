@@ -3,10 +3,11 @@ from __future__ import annotations
 import logging
 from copy import deepcopy
 from datetime import date
-from itertools import islice
+from itertools import chain, islice
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import funcy
 import joblib
 import polars as pl
 import requests
@@ -24,6 +25,16 @@ BASE_URL = "https://recommend.games"
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = PROJECT_DIR / "data"
 SCRAPED_DIR = PROJECT_DIR.parent / "board-game-data" / "scraped"
+
+GAME_FEATURES = (
+    "bgg_id",
+    "name",
+    "year",
+    "num_votes",
+    "avg_rating",
+    "bayes_rating",
+    "complexity",
+)
 
 
 def _recommend_games(
@@ -175,15 +186,8 @@ def fetch_candidates(
     data = (
         pl.LazyFrame(candidates)
         .select(
-            "bgg_id",
-            "name",
-            "year",
-            "bgg_rank",
-            "num_votes",
-            "avg_rating",
-            "bayes_rating",
+            *GAME_FEATURES,
             "rec_rating",
-            "complexity",
             "kennerspiel_score",
         )
         .with_columns(
@@ -311,7 +315,27 @@ def load_candidates(
     jury_member_prefix: str = "s_d_j_",
     kennerspiel_cutoff_score: float = 0.5,
 ) -> tuple[list[str], pl.LazyFrame]:
+    kennerspiel_model = (
+        kennerspiel_model
+        if isinstance(kennerspiel_model, BaseEstimator)
+        else joblib.load(kennerspiel_model)
+    )
+    assert isinstance(kennerspiel_model, BaseEstimator), (
+        "kennerspiel_model must be an sklearn estimator"
+    )
+
+    recommender_model = (
+        recommender_model
+        if isinstance(recommender_model, BaseGamesRecommender)
+        else LightGamesRecommender.from_npz(recommender_model)
+    )
+    assert isinstance(recommender_model, BaseGamesRecommender), (
+        "recommender_model must be a board_game_recommender.BaseGamesRecommender"
+    )
+
     include, exclude, jury_members = include_exclude_jury_members(year)
+
+    features = funcy.distinct(chain(GAME_FEATURES, kennerspiel_model.feature_names_in_))
 
     games_path = SCRAPED_DIR / "bgg_GameItem.csv"
     games = (
@@ -320,17 +344,8 @@ def load_candidates(
             pl.col("year").is_between(year - 1, year) | pl.col("bgg_id").is_in(include),
         )
         .remove(pl.col("bgg_id").is_in(exclude))
+        .select(*features)
         .collect()
-    )
-    # TODO: select()?
-
-    kennerspiel_model = (
-        kennerspiel_model
-        if isinstance(kennerspiel_model, BaseEstimator)
-        else joblib.load(kennerspiel_model)
-    )
-    assert isinstance(kennerspiel_model, BaseEstimator), (
-        "kennerspiel_model must be an sklearn estimator"
     )
 
     kennerspiel_scores = kennerspiel_model.predict_proba(games.to_pandas())[:, 1]
@@ -343,15 +358,6 @@ def load_candidates(
         .with_columns(
             kennerspiel=pl.col("kennerspiel_score") > kennerspiel_cutoff_score,
         )
-    )
-
-    recommender_model = (
-        recommender_model
-        if isinstance(recommender_model, BaseGamesRecommender)
-        else LightGamesRecommender.from_npz(recommender_model)
-    )
-    assert isinstance(recommender_model, BaseGamesRecommender), (
-        "recommender_model must be a board_game_recommender.BaseGamesRecommender"
     )
 
     jury_members_users = [
