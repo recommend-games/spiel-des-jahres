@@ -145,7 +145,7 @@ def _add_rel_columns(candidates: pl.LazyFrame, col_suffix: str = "") -> pl.LazyF
     )
 
 
-def fetch_candidates(
+def fetch_candidates_for_single_user(
     *,
     user_name: str = "s_d_j",
     year: int | None = None,
@@ -241,7 +241,7 @@ def include_exclude_jury_members(
     return include, exclude, jury_members
 
 
-def fetch_all_candidates(
+def fetch_candidates(
     year: int,
     *,
     main_user: str = "s_d_j",
@@ -262,7 +262,7 @@ def fetch_all_candidates(
     LOGGER.info("Excluding %d games", len(exclude))
 
     LOGGER.info("Fetching candidates for %s", main_user)
-    result = fetch_candidates(
+    result = fetch_candidates_for_single_user(
         user_name=main_user,
         year=year,
         bgg_ids_include=include,
@@ -277,7 +277,7 @@ def fetch_all_candidates(
 
     for jury_member in jury_members:
         LOGGER.info("Fetching candidates for %s", jury_member)
-        results_jury_member = fetch_candidates(
+        results_jury_member = fetch_candidates_for_single_user(
             user_name=f"{jury_member_prefix}{jury_member}",
             year=year,
             bgg_ids_include=include,
@@ -309,6 +309,7 @@ def fetch_all_candidates(
 def load_candidates(
     year: int,
     *,
+    games_path: Path | str = SCRAPED_DIR / "bgg_GameItem.csv",
     kennerspiel_model: BaseEstimator | Path | str,
     recommender_model: BaseGamesRecommender[int, str] | Path | str,
     main_user: str = "s_d_j",
@@ -337,7 +338,8 @@ def load_candidates(
 
     features = funcy.distinct(chain(GAME_FEATURES, kennerspiel_model.feature_names_in_))
 
-    games_path = SCRAPED_DIR / "bgg_GameItem.csv"
+    games_path = Path(games_path).resolve()
+    LOGGER.info("Reading games from <%s>", games_path)
     games = (
         pl.scan_csv(games_path, infer_schema_length=None)
         .filter(
@@ -384,11 +386,15 @@ def load_candidates(
 def sdj_predictions(
     year: int,
     *,
+    fetch_from_api: bool = False,
     main_user: str = "s_d_j",
     main_user_weights: Mapping[str, float] | None = None,
     jury_member_prefix: str = "s_d_j_",
     jury_member_weights: Mapping[str, float] | None = None,
     kennerspiel_cutoff_score: float = 0.5,
+    games_path: Path | str = SCRAPED_DIR / "bgg_GameItem.csv",
+    kennerspiel_model: BaseEstimator | Path | str | None = None,
+    recommender_model: BaseGamesRecommender[int, str] | Path | str | None = None,
     max_results: int | None = 25,
     base_url: str = BASE_URL,
     timeout: float = 60,
@@ -397,17 +403,32 @@ def sdj_predictions(
 ) -> pl.LazyFrame:
     """Predict the Spiel des Jahres winner."""
 
-    jury_members, candidates = fetch_all_candidates(
-        year=year,
-        main_user=main_user,
-        jury_member_prefix=jury_member_prefix,
-        kennerspiel_cutoff_score=kennerspiel_cutoff_score,
-        max_results=max_results,
-        base_url=base_url,
-        timeout=timeout,
-        max_exclude_games=max_exclude_games,
-        progress_bar=progress_bar,
-    )
+    if fetch_from_api:
+        jury_members, candidates = fetch_candidates(
+            year=year,
+            main_user=main_user,
+            jury_member_prefix=jury_member_prefix,
+            kennerspiel_cutoff_score=kennerspiel_cutoff_score,
+            max_results=max_results,
+            base_url=base_url,
+            timeout=timeout,
+            max_exclude_games=max_exclude_games,
+            progress_bar=progress_bar,
+        )
+
+    else:
+        assert kennerspiel_model is not None, "kennerspiel_model must be provided"
+        assert recommender_model is not None, "recommender_model must be provided"
+
+        jury_members, candidates = load_candidates(
+            year=year,
+            games_path=games_path,
+            kennerspiel_model=kennerspiel_model,
+            recommender_model=recommender_model,
+            main_user=main_user,
+            jury_member_prefix=jury_member_prefix,
+            kennerspiel_cutoff_score=kennerspiel_cutoff_score,
+        )
 
     main_user_weights = main_user_weights or {}
     jury_member_weights = jury_member_weights or {}
