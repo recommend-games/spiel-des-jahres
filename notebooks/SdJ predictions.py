@@ -39,8 +39,10 @@ predictions = sdj_predictions(
     year=2025,
     main_user_weights={"rec_standard": 14.0},
     jury_member_weights={"rec_standard": 1.0},
-    max_results=None,
-    progress_bar=True,
+    fetch_from_api=False,
+    games_path="../../board-game-data/scraped/bgg_GameItem.csv",
+    kennerspiel_model="../kennerspiel.joblib",
+    recommender_model="../../recommend-games-server/data/recommender_light.npz",
 ).collect()
 predictions.shape
 
