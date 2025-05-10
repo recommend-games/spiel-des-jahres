@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import joblib
 import polars as pl
 import requests
-from board_game_recommender.abc import BaseRecommender
+from board_game_recommender.abc import BaseGamesRecommender
 from board_game_recommender.light import LightGamesRecommender
 from sklearn.base import BaseEstimator
 
@@ -306,7 +306,7 @@ def load_candidates(
     year: int,
     *,
     kennerspiel_model: BaseEstimator | Path | str,
-    recommender_model: BaseRecommender | Path | str,
+    recommender_model: BaseGamesRecommender[int, str] | Path | str,
     main_user: str = "s_d_j",
     jury_member_prefix: str = "s_d_j_",
 ) -> tuple[list[str], pl.LazyFrame]:
@@ -338,24 +338,32 @@ def load_candidates(
 
     recommender_model = (
         recommender_model
-        if isinstance(recommender_model, BaseRecommender)
+        if isinstance(recommender_model, BaseGamesRecommender)
         else LightGamesRecommender.from_npz(recommender_model)
     )
-    assert isinstance(recommender_model, BaseRecommender), (
-        "recommender_model must be a board_game_recommender.BaseRecommender"
+    assert isinstance(recommender_model, BaseGamesRecommender), (
+        "recommender_model must be a board_game_recommender.BaseGamesRecommender"
     )
 
-    jury_members_users = [f"{jury_member_prefix}{jury_member}" for jury_member in jury_members]
-    users = [main_user] + jury_members_users
+    jury_members_users = [
+        f"{jury_member_prefix}{jury_member}" for jury_member in jury_members
+    ]
+    jury_members_cols = [f"rec_rating_{jury_member}" for jury_member in jury_members]
+    users = [main_user, *jury_members_users]
+    cols = [f"rec_rating_{main_user}", *jury_members_cols]
 
-    rec_scores = recommender_model.recommend_as_numpy(
+    rec_ratings = recommender_model.recommend_as_numpy(
         users=users,
         games=games["bgg_id"],
     )
 
-    # TODO: add "rec_rating{suffix}" columns
+    rec_ratings_df = pl.LazyFrame(rec_ratings, schema=cols)
+    result = pl.concat([games.lazy(), rec_ratings_df], how="horizontal")
 
-    return jury_members, games.lazy()
+    for jury_member in [main_user, *jury_members]:
+        result = _add_rel_columns(result, col_suffix=jury_member)
+
+    return jury_members, result
 
 
 def sdj_predictions(
