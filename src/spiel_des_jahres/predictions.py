@@ -7,8 +7,10 @@ from itertools import islice
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import joblib
 import polars as pl
 import requests
+from sklearn.base import BaseEstimator
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Mapping
@@ -16,7 +18,10 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 BASE_URL = "https://recommend.games"
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+
+PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+DATA_DIR = PROJECT_DIR / "data"
+SCRAPED_DIR = PROJECT_DIR.parent / "board-game-data" / "scraped"
 
 
 def _recommend_games(
@@ -280,6 +285,44 @@ def fetch_all_candidates(
             "rec_standard": f"rec_standard_{main_user}",
         },
     )
+
+
+def load_candidates(
+    year: int,
+    *,
+    kennerspiel_model: BaseEstimator | Path | str,
+    main_user: str = "s_d_j",  # noqa: ARG001
+    jury_member_prefix: str = "s_d_j_",  # noqa: ARG001
+) -> tuple[list[str], pl.LazyFrame]:
+    include, exclude, jury_members = include_exclude_jury_members(year)
+
+    games_path = SCRAPED_DIR / "bgg_GameItem.csv"
+    games = (
+        pl.scan_csv(games_path, infer_schema_length=None)
+        .filter(
+            pl.col("year").is_between(year - 1, year) | pl.col("bgg_id").is_in(include),
+        )
+        .remove(pl.col("bgg_id").is_in(exclude))
+        .collect()
+    )
+    # TODO: select()?
+
+    kennerspiel_model = (
+        kennerspiel_model
+        if isinstance(kennerspiel_model, BaseEstimator)
+        else joblib.load(kennerspiel_model)
+    )
+    assert isinstance(kennerspiel_model, BaseEstimator), (
+        "kennerspiel_model must be an sklearn estimator"
+    )
+
+    games = games.with_columns(
+        kennerspiel=kennerspiel_model.predict(games),
+    )
+
+    # TODO: rec_score for all users
+
+    return jury_members, games.lazy()
 
 
 def sdj_predictions(
