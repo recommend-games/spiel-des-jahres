@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 import joblib
 import polars as pl
 import requests
+from board_game_recommender.abc import BaseRecommender
+from board_game_recommender.light import LightGamesRecommender
 from sklearn.base import BaseEstimator
 
 if TYPE_CHECKING:
@@ -304,8 +306,9 @@ def load_candidates(
     year: int,
     *,
     kennerspiel_model: BaseEstimator | Path | str,
-    main_user: str = "s_d_j",  # noqa: ARG001
-    jury_member_prefix: str = "s_d_j_",  # noqa: ARG001
+    recommender_model: BaseRecommender | Path | str,
+    main_user: str = "s_d_j",
+    jury_member_prefix: str = "s_d_j_",
 ) -> tuple[list[str], pl.LazyFrame]:
     include, exclude, jury_members = include_exclude_jury_members(year)
 
@@ -333,7 +336,24 @@ def load_candidates(
         kennerspiel=kennerspiel_model.predict(games),
     )
 
-    # TODO: rec_score for all users
+    recommender_model = (
+        recommender_model
+        if isinstance(recommender_model, BaseRecommender)
+        else LightGamesRecommender.from_npz(recommender_model)
+    )
+    assert isinstance(recommender_model, BaseRecommender), (
+        "recommender_model must be a board_game_recommender.BaseRecommender"
+    )
+
+    jury_members_users = [f"{jury_member_prefix}{jury_member}" for jury_member in jury_members]
+    users = [main_user] + jury_members_users
+
+    rec_scores = recommender_model.recommend_as_numpy(
+        users=users,
+        games=games["bgg_id"],
+    )
+
+    # TODO: add "rec_rating{suffix}" columns
 
     return jury_members, games.lazy()
 
