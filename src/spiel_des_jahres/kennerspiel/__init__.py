@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from collections.abc import Iterable
 from itertools import chain
 from pathlib import Path
@@ -21,7 +20,7 @@ from sklearn.preprocessing import FunctionTransformer
 if TYPE_CHECKING:
     from typing import Any
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
+PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DATA_DIR = PROJECT_DIR / "data"
 SCRAPED_DIR = PROJECT_DIR.parent / "board-game-data" / "scraped"
 
@@ -232,16 +231,3 @@ def load_games(
         on="bgg_id",
         how="inner",
     )
-
-
-def _main() -> None:
-    import joblib
-
-    dest = sys.argv[1]
-    games = load_games().collect()
-    model = train_model(games.to_pandas())
-    joblib.dump(model, dest)
-
-
-if __name__ == "__main__":
-    _main()
