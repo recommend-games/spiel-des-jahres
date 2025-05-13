@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.resources
 import logging
 from copy import deepcopy
 from datetime import date
@@ -23,7 +24,7 @@ LOGGER = logging.getLogger(__name__)
 BASE_URL = "https://recommend.games"
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
-DATA_DIR = PROJECT_DIR / "data"
+DATA_DIR = importlib.resources.files() / "data"
 SCRAPED_DIR = PROJECT_DIR.parent / "board-game-data" / "scraped"
 
 GAME_FEATURES = (
@@ -201,29 +202,43 @@ def fetch_candidates_for_single_user(
 def include_exclude_jury_members(
     year: int,
 ) -> tuple[pl.Series, pl.Series, list[str]]:
-    exclude_path = DATA_DIR / str(year) / "exclude.csv"
-    LOGGER.info("Reading exclude from <%s>", exclude_path)
-    exclude_explicit = pl.scan_csv(exclude_path).select("bgg_id").collect()["bgg_id"]
-
-    prev_reviews_path = DATA_DIR / str(year - 1) / "reviews.csv"
-    if prev_reviews_path.exists():
-        LOGGER.info("Reading previous reviews from <%s>", prev_reviews_path)
-        prev_reviews = (
-            pl.scan_csv(prev_reviews_path).select("bgg_id").collect()["bgg_id"]
+    with importlib.resources.as_file(
+        DATA_DIR / str(year) / "exclude.csv",
+    ) as exclude_path:
+        LOGGER.info("Reading exclude from <%s>", exclude_path)
+        exclude_explicit = (
+            pl.scan_csv(exclude_path).select("bgg_id").collect()["bgg_id"]
         )
-    else:
-        prev_reviews = pl.Series(name="bgg_id", values=[], dtype=pl.Int64)
 
-    LOGGER.info("Fetching previous awards from <%s>", DATA_DIR)
-    prev_awards = (
-        pl.scan_csv(
-            [DATA_DIR / "sdj.csv", DATA_DIR / "ksdj.csv", DATA_DIR / "kindersdj.csv"],
+    with importlib.resources.as_file(
+        DATA_DIR / str(year - 1) / "reviews.csv",
+    ) as prev_reviews_path:
+        if prev_reviews_path.exists():
+            LOGGER.info("Reading previous reviews from <%s>", prev_reviews_path)
+            prev_reviews = (
+                pl.scan_csv(prev_reviews_path).select("bgg_id").collect()["bgg_id"]
+            )
+        else:
+            prev_reviews = pl.Series(name="bgg_id", values=[], dtype=pl.Int64)
+
+    with (
+        importlib.resources.as_file(DATA_DIR / "sdj.csv") as sdj_path,
+        importlib.resources.as_file(DATA_DIR / "ksdj.csv") as ksdj_path,
+        importlib.resources.as_file(DATA_DIR / "kindersdj.csv") as kindersdj_path,
+    ):
+        LOGGER.info(
+            "Fetching previous awards from <%s>, <%s> and <%s>",
+            sdj_path,
+            ksdj_path,
+            kindersdj_path,
         )
-        .sort("jahrgang", descending=True)
-        .filter(pl.col("jahrgang") < year)
-        .select("bgg_id")
-        .collect()["bgg_id"]
-    )
+        prev_awards = (
+            pl.scan_csv([sdj_path, ksdj_path, kindersdj_path])
+            .sort("jahrgang", descending=True)
+            .filter(pl.col("jahrgang") < year)
+            .select("bgg_id")
+            .collect()["bgg_id"]
+        )
 
     exclude = pl.concat(
         [exclude_explicit, prev_reviews, prev_awards],
@@ -231,9 +246,11 @@ def include_exclude_jury_members(
     ).unique(maintain_order=True)
     del exclude_explicit, prev_awards, prev_reviews
 
-    curr_reviews_path = DATA_DIR / str(year) / "reviews.csv"
-    LOGGER.info("Reading current reviews from <%s>", curr_reviews_path)
-    curr_reviews = pl.read_csv(curr_reviews_path)
+    with importlib.resources.as_file(
+        DATA_DIR / str(year) / "reviews.csv",
+    ) as curr_reviews_path:
+        LOGGER.info("Reading current reviews from <%s>", curr_reviews_path)
+        curr_reviews = pl.read_csv(curr_reviews_path)
     include = curr_reviews.remove(pl.col("bgg_id").is_in(exclude))["bgg_id"]
     jury_members = curr_reviews.select(pl.exclude("bgg_id", "name")).columns
     del curr_reviews
