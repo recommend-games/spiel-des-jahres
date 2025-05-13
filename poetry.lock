@@ -4674,10 +4674,10 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 
 [extras]
 kennerspiel = ["funcy", "joblib", "numpy", "pandas", "polars", "scikit-learn", "scipy"]
-predictions = ["board-game-recommender", "polars", "tqdm"]
+predictions = ["board-game-recommender", "funcy", "joblib", "numpy", "pandas", "polars", "scikit-learn", "scipy", "tqdm"]
 scraper = ["beautifulsoup4", "openai", "polars", "scrapy"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10.0, <4.0"
-content-hash = "2ad5f3233c4be002b1dbd5608794d207be97b7757017f58b1183d2891be44b6a"
+content-hash = "8e27a7e0dc48a30b073404e5050b215bb10e848f637cc2e934515959ca7933e0"

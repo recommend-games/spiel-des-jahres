@@ -68,7 +68,7 @@ types-tqdm = "*"
 
 [tool.poetry.extras]
 kennerspiel = ["funcy", "joblib", "numpy", "pandas", "polars", "scikit-learn", "scipy"]
-predictions = ["board-game-recommender", "polars", "tqdm"]
+predictions = ["board-game-recommender", "funcy", "joblib", "numpy", "pandas", "polars", "scikit-learn", "scipy", "tqdm"]
 scraper = ["beautifulsoup4", "openai", "polars", "scrapy"]
 
 [build-system]
