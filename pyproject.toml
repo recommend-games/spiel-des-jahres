@@ -33,6 +33,7 @@ packages = [
 python = ">=3.10.0, <4.0"
 
 beautifulsoup4 = {version = ">=4.12.0, <5.0", optional = true}
+board-game-recommender = {version = ">=4.0.0, <5.0", optional = true}
 funcy = {version = ">=2.0.0, <3.0.0", optional = true}
 joblib = {version = ">=1.0.0, <2.0.0", optional = true}
 numpy = {version = ">=2.0.0, <3.0.0", optional = true}
@@ -42,9 +43,14 @@ polars = {version = ">=1.0.0, <2.0.0", optional = true, extras = ["pandas", "pya
 scipy = {version = ">=1.0.0, <2.0.0", optional = true}
 scikit-learn = {version = ">=1.0.0, <2.0.0", optional = true}
 scrapy = {version = ">=2.11.0, <3.0", optional = true}
+tqdm = {version = "*", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 funcy-typing = "*"
+ipython = "*"
+jupyter-black = "*"
+jupyterlab = "*"
+jupytext = "*"
 mkdocstrings = {version = ">=0.23", extras = ["python"]}
 mkdocs-material = "*"
 mypy = "*"
@@ -57,9 +63,12 @@ pytest-cov = "*"
 python-kacl = "*"
 ruff = ">=0.2.0"
 scipy-stubs = "*"
+types-requests = "*"
+types-tqdm = "*"
 
 [tool.poetry.extras]
-kennerspiel = ["funcy", "joblib", "numpy", "pandas", "scikit-learn", "scipy"]
+kennerspiel = ["funcy", "joblib", "numpy", "pandas", "polars", "scikit-learn", "scipy"]
+predictions = ["board-game-recommender", "funcy", "joblib", "numpy", "pandas", "polars", "scikit-learn", "scipy", "tqdm"]
 scraper = ["beautifulsoup4", "openai", "polars", "scrapy"]
 
 [build-system]
@@ -88,6 +97,7 @@ ignore = [
     "RUF001",
     "ISC003",
     "S101",     # "Use of `assert` detected"
+    "DTZ011",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -106,6 +116,9 @@ classmethod-decorators = [
     "pydantic.validator",
     "pydantic.root_validator",
 ]
+
+[tool.ruff.lint.pylint]
+max-args = 20
 
 [tool.pytest.ini_options]
 addopts = """\
