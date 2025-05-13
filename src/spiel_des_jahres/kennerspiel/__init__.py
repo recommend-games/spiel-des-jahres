@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.resources
 from collections.abc import Iterable
 from itertools import chain
 from pathlib import Path
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from typing import Any
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
-DATA_DIR = PROJECT_DIR / "data"
+DATA_DIR = importlib.resources.files() / "data"
 SCRAPED_DIR = PROJECT_DIR.parent / "board-game-data" / "scraped"
 
 FIRST_KENNERSPIEL_JAHRGANG = 2011
@@ -198,8 +199,6 @@ def train_model(
 
 def load_games(
     games_path: Path = SCRAPED_DIR / "bgg_GameItem.csv",
-    spiel_path: Path = DATA_DIR / "sdj.csv",
-    kennerspiel_path: Path = DATA_DIR / "ksdj.csv",
     kennerspiel_sonderpreis: Iterable[str] | None = (
         "Complex Game",
         "Fantasy Game",
@@ -207,27 +206,32 @@ def load_games(
         "New Worlds Game",
     ),
 ) -> pl.LazyFrame:
-    spiel = (
-        pl.scan_csv(spiel_path)
-        .with_columns(
-            kennerspiel=pl.lit(value=False)
-            if kennerspiel_sonderpreis is None
-            else pl.col("sonderpreis").is_in(frozenset(kennerspiel_sonderpreis)),
-        )
-        .filter(
-            (pl.col("jahrgang") > FIRST_KENNERSPIEL_JAHRGANG)
-            | (
-                (pl.col("jahrgang") == FIRST_KENNERSPIEL_JAHRGANG)
-                & (pl.col("nominated") == 1)
+    with (
+        importlib.resources.as_file(DATA_DIR / "sdj.csv") as spiel_path,
+        importlib.resources.as_file(DATA_DIR / "ksdj.csv") as kennerspiel_path,
+    ):
+        spiel = (
+            pl.scan_csv(spiel_path)
+            .with_columns(
+                kennerspiel=pl.lit(value=False)
+                if kennerspiel_sonderpreis is None
+                else pl.col("sonderpreis").is_in(frozenset(kennerspiel_sonderpreis)),
             )
-            | pl.col("kennerspiel"),
+            .filter(
+                (pl.col("jahrgang") > FIRST_KENNERSPIEL_JAHRGANG)
+                | (
+                    (pl.col("jahrgang") == FIRST_KENNERSPIEL_JAHRGANG)
+                    & (pl.col("nominated") == 1)
+                )
+                | pl.col("kennerspiel"),
+            )
+            .select("bgg_id", pl.col("kennerspiel").fill_null(value=False))
         )
-        .select("bgg_id", pl.col("kennerspiel").fill_null(value=False))
-    )
-    kennerspiel = pl.scan_csv(kennerspiel_path).select("bgg_id", kennerspiel=True)
-    sdj = pl.concat([spiel, kennerspiel])
+        kennerspiel = pl.scan_csv(kennerspiel_path).select("bgg_id", kennerspiel=True)
+        sdj = pl.concat([spiel, kennerspiel]).collect()
+
     return pl.scan_csv(games_path, infer_schema_length=None).join(
-        sdj,
+        sdj.lazy(),
         on="bgg_id",
         how="inner",
     )

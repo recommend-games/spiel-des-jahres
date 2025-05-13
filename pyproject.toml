@@ -29,6 +29,8 @@ packages = [
     {include = "spiel_des_jahres", from = "src"}
 ]
 
+include = ["src/spiel_des_jahres/data/"]
+
 [tool.poetry.dependencies]
 python = ">=3.10.0, <4.0"
 
