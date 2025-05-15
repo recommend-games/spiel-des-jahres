@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from pathlib import Path
 
 import joblib
 
@@ -20,7 +21,26 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         help="Path to save the trained model.",
     )
-    # TODO: more args
+    parser.add_argument(
+        "--games-path",
+        "-g",
+        type=str,
+        default=SCRAPED_DIR / "bgg_GameItem.csv",
+        help="Path to the games CSV file.",
+    )
+    parser.add_argument(
+        "--kennerspiel-sonderpreis",
+        "-k",
+        type=str,
+        nargs="+",
+        default=(
+            "Complex Game",
+            "Fantasy Game",
+            "Game of the Year Plus",
+            "New Worlds Game",
+        ),
+        help="Sonderpreise that are considered Kennerspiel.",
+    )
     return parser.parse_args()
 
 
@@ -33,8 +53,12 @@ def _main() -> None:
     )
     LOGGER.info(args)
 
-    LOGGER.info("Loading games from %s", SCRAPED_DIR)
-    games = load_games(SCRAPED_DIR / "bgg_GameItem.csv").collect()
+    games_path = Path(args.games_path).resolve()
+    LOGGER.info("Loading games from %s", games_path)
+    games = load_games(
+        games_path=games_path,
+        kennerspiel_sonderpreis=args.kennerspiel_sonderpreis,
+    ).collect()
     LOGGER.info("Loaded %d games", len(games))
 
     LOGGER.info("Training model")
