@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from typing import Any
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
-DATA_DIR = importlib.resources.files() / "data"
+DATA_DIR = importlib.resources.files("spiel_des_jahres") / "data"
 SCRAPED_DIR = PROJECT_DIR.parent / "board-game-data" / "scraped"
 
 FIRST_KENNERSPIEL_JAHRGANG = 2011
