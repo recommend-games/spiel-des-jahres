@@ -24,7 +24,7 @@ LOGGER = logging.getLogger(__name__)
 BASE_URL = "https://recommend.games"
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
-DATA_DIR = importlib.resources.files() / "data"
+DATA_DIR = importlib.resources.files("spiel_des_jahres") / "data"
 SCRAPED_DIR = PROJECT_DIR.parent / "board-game-data" / "scraped"
 
 GAME_FEATURES = (
