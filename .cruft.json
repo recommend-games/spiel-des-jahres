@@ -1,6 +1,6 @@
 {
   "template": "https://github.com/woltapp/wolt-python-package-cookiecutter",
-  "commit": "b25684a2c63387153b83a1cc03ea332be8c8279a",
+  "commit": "bb78632b3c5749dd181e8739fd4e16c7291fe1cf",
   "checkout": null,
   "context": {
     "cookiecutter": {
@@ -12,7 +12,7 @@
       "package_name": "spiel_des_jahres",
       "project_short_description": "Spiel des Jahres predictions",
       "_template": "https://github.com/woltapp/wolt-python-package-cookiecutter",
-      "_commit": "b25684a2c63387153b83a1cc03ea332be8c8279a"
+      "_commit": "bb78632b3c5749dd181e8739fd4e16c7291fe1cf"
     }
   },
   "directory": null
