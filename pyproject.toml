@@ -1,17 +1,13 @@
-[tool.poetry]
+[project]
 name = "spiel-des-jahres"
 version = "0.3.1"
 description = "Spiel des Jahres predictions"
 authors = [
-    "Markus Shepherd <markus@recommend.games>",
+    { name = "Markus Shepherd", email = "markus@recommend.games" },
 ]
-license = "MIT"
+license = { text = "MIT" }
 readme = "README.md"
-
-documentation = "https://recommend-games.github.io/spiel-des-jahres"
-homepage = "https://recommend-games.github.io/spiel-des-jahres"
-repository = "https://github.com/recommend-games/spiel-des-jahres"
-
+requires-python = ">=3.10"
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
@@ -21,64 +17,82 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: Libraries :: Python Modules",
   "Typing :: Typed",
 ]
+dependencies = []
 
-packages = [
-    {include = "spiel_des_jahres", from = "src"}
+[project.urls]
+Documentation = "https://recommend-games.github.io/spiel-des-jahres"
+Homepage = "https://recommend-games.github.io/spiel-des-jahres"
+Repository = "https://github.com/recommend-games/spiel-des-jahres"
+
+[project.optional-dependencies]
+kennerspiel = [
+    "funcy>=2.0.0,<3.0.0",
+    "joblib>=1.0.0,<2.0.0",
+    "numpy>=2.0.0,<3.0.0",
+    "pandas>=2.0.0,<3.0.0",
+    "polars[pandas,pyarrow]>=1.0.0,<2.0.0",
+    "scikit-learn>=1.0.0,<2.0.0",
+    "scipy>=1.0.0,<2.0.0",
+]
+predictions = [
+    "board-game-recommender>=4.0.0,<5.0",
+    "funcy>=2.0.0,<3.0.0",
+    "joblib>=1.0.0,<2.0.0",
+    "numpy>=2.0.0,<3.0.0",
+    "pandas>=2.0.0,<3.0.0",
+    "polars[pandas,pyarrow]>=1.0.0,<2.0.0",
+    "scikit-learn>=1.0.0,<2.0.0",
+    "scipy>=1.0.0,<2.0.0",
+    "tqdm",
+]
+scraper = [
+    "beautifulsoup4>=4.12.0,<5.0",
+    "openai>=1.0.0,<2.0.0",
+    "polars[pandas,pyarrow]>=1.0.0,<2.0.0",
+    "scrapy>=2.11.0,<3.0",
 ]
 
-include = ["src/spiel_des_jahres/data/"]
-
-[tool.poetry.dependencies]
-python = ">=3.10.0, <4.0"
-
-beautifulsoup4 = {version = ">=4.12.0, <5.0", optional = true}
-board-game-recommender = {version = ">=4.0.0, <5.0", optional = true}
-funcy = {version = ">=2.0.0, <3.0.0", optional = true}
-joblib = {version = ">=1.0.0, <2.0.0", optional = true}
-numpy = {version = ">=2.0.0, <3.0.0", optional = true}
-openai = {version = ">=1.0.0, <2.0.0", optional = true}
-pandas = {version = ">=2.0.0, <3.0.0", optional = true}
-polars = {version = ">=1.0.0, <2.0.0", optional = true, extras = ["pandas", "pyarrow"]}
-scipy = {version = ">=1.0.0, <2.0.0", optional = true}
-scikit-learn = {version = ">=1.0.0, <2.0.0", optional = true}
-scrapy = {version = ">=2.11.0, <3.0", optional = true}
-tqdm = {version = "*", optional = true}
-
-[tool.poetry.group.dev.dependencies]
-funcy-typing = "*"
-ipython = "*"
-jupyter-black = "*"
-jupyterlab = "*"
-jupytext = "*"
-mkdocstrings = {version = ">=0.23", extras = ["python"]}
-mkdocs-material = "*"
-mypy = "*"
-pandas-stubs = "*"
-pre-commit = "*"
-pymdown-extensions = "*"
-pytest = "*"
-pytest-github-actions-annotate-failures = "*"
-pytest-cov = "*"
-python-kacl = "*"
-ruff = ">=0.2.0"
-scipy-stubs = "*"
-types-requests = "*"
-types-tqdm = "*"
-
-[tool.poetry.extras]
-kennerspiel = ["funcy", "joblib", "numpy", "pandas", "polars", "scikit-learn", "scipy"]
-predictions = ["board-game-recommender", "funcy", "joblib", "numpy", "pandas", "polars", "scikit-learn", "scipy", "tqdm"]
-scraper = ["beautifulsoup4", "openai", "polars", "scrapy"]
+[dependency-groups]
+dev = [
+    "funcy-typing",
+    "ipython",
+    "jupyter-black",
+    "jupyterlab",
+    "jupytext",
+    "mkdocstrings[python]>=0.23",
+    "mkdocs-material",
+    "mypy",
+    "pandas-stubs",
+    "pre-commit",
+    "pymdown-extensions",
+    "pytest",
+    "pytest-github-actions-annotate-failures",
+    "pytest-cov",
+    "python-kacl",
+    "ruff>=0.2.0",
+    "scipy-stubs",
+    "types-requests",
+    "types-tqdm",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/spiel_des_jahres"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/spiel_des_jahres/data/"]
 
 [tool.ruff]
 target-version = "py310" # The lowest supported version
+exclude = ["notebooks"]
 
 [tool.ruff.lint]
 # By default, enable all the lint rules.
@@ -152,9 +166,3 @@ exclude = [
 [[tool.mypy.overrides]]
 module = ["joblib.*", "sklearn.*"]
 ignore_missing_imports = true
-
-# [[tool.mypy.overrides]]
-# module = [
-#   "tests/my_thing/test_my_thing",
-# ]
-# disallow_untyped_defs = false

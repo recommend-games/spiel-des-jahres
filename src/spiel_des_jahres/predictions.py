@@ -108,7 +108,7 @@ def recommend_games(
     results = islice(results, max_results) if max_results else results
 
     if progress_bar:
-        from tqdm import tqdm
+        from tqdm import tqdm  # noqa: PLC0415
 
         results = tqdm(
             results,

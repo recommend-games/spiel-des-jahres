@@ -64,14 +64,14 @@ class SpielReviewSpider(SitemapSpider):
         if item["wp_json_url"]:
             return Request(
                 item["wp_json_url"],
-                callback=self.parse_wp_json,  # type: ignore[arg-type]
+                callback=self.parse_wp_json,
                 cb_kwargs={"item": item},
             )
 
         if item["oembed_json_url"]:
             return Request(
                 item["oembed_json_url"],
-                callback=self.parse_oembed_json,  # type: ignore[arg-type]
+                callback=self.parse_oembed_json,
                 cb_kwargs={"item": item},
             )
 
@@ -95,7 +95,7 @@ class SpielReviewSpider(SitemapSpider):
         if item["oembed_json_url"]:
             return Request(
                 item["oembed_json_url"],
-                callback=self.parse_oembed_json,  # type: ignore[arg-type]
+                callback=self.parse_oembed_json,
                 cb_kwargs={"item": item},
             )
 
