@@ -28,24 +28,18 @@ pip install spiel-des-jahres
 
 * Clone this repository
 * Requirements:
-  * [Poetry](https://python-poetry.org/)
+  * [uv](https://docs.astral.sh/uv/)
   * Python 3.10+
 * Create a virtual environment and install the dependencies
 
 ```sh
-poetry install
-```
-
-* Activate the virtual environment
-
-```sh
-poetry shell
+uv sync --all-extras
 ```
 
 ### Testing
 
 ```sh
-pytest
+uv run pytest
 ```
 
 ### Documentation

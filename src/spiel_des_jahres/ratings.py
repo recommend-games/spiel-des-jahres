@@ -48,7 +48,7 @@ def _parse_reviews_jl(
 def reviews_jl_to_polars(
     file_path: str | Path,
 ) -> pl.DataFrame:
-    import polars as pl
+    import polars as pl  # noqa: PLC0415
 
     reviews = pl.LazyFrame(_parse_reviews_jl(file_path)).select(
         pl.lit(None).alias("bgg_id"),

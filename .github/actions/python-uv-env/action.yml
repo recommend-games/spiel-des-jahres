@@ -1,0 +1,21 @@
+name: 'Setup Python + uv environment'
+description: 'Setup Python + uv environment'
+
+inputs:
+  python-version:
+    required: false
+    description: 'Python version'
+    default: '3.14'
+outputs: {}
+runs:
+  using: 'composite'
+  steps:
+    - uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+    - name: Setup Python
+      run: uv python install ${{ inputs.python-version }}
+      shell: bash
+    - name: Create virtual environment
+      run: uv sync --all-extras
+      shell: bash
