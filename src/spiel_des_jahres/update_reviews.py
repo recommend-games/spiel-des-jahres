@@ -6,10 +6,13 @@ import sys
 from pathlib import Path
 
 import polars as pl
+from thefuzz import process  # type: ignore[import-untyped]
 
 from spiel_des_jahres.ratings import reviews_jl_to_polars
 
 LOGGER = logging.getLogger(__name__)
+
+FUZZY_MATCH_THRESHOLD = 90
 
 
 def arg_parse() -> argparse.Namespace:
@@ -29,6 +32,16 @@ def arg_parse() -> argparse.Namespace:
         help="Path to the kritikenrundschau.csv file.",
     )
     parser.add_argument(
+        "--bgg-games",
+        "-b",
+        type=Path,
+        default=Path(__file__).parent.parent.parent
+        / "board-game-data"
+        / "scraped"
+        / "bgg_GameItem.csv",
+        help="Path to the bgg_GameItem.csv file for BGG ID matching.",
+    )
+    parser.add_argument(
         "--dry-run",
         "-n",
         action="store_true",
@@ -42,6 +55,93 @@ def arg_parse() -> argparse.Namespace:
         help="Increase verbosity",
     )
     return parser.parse_args()
+
+
+def find_bgg_ids(
+    df: pl.DataFrame,
+    bgg_games_path: Path,
+) -> pl.DataFrame:
+    """Try to find BGG IDs for games with missing IDs using exact and fuzzy matching."""
+    if not bgg_games_path.exists():
+        LOGGER.warning(
+            "BGG games file <%s> not found. Skipping ID matching.",
+            bgg_games_path,
+        )
+        return df
+
+    missing_ids = df.filter(pl.col("bgg_id").is_null())
+    if missing_ids.is_empty():
+        return df
+
+    LOGGER.info("Attempting to find BGG IDs for %d games...", len(missing_ids))
+
+    # Load BGG games database
+    bgg_games = pl.read_csv(bgg_games_path, schema_overrides={"bgg_id": pl.Int64})
+
+    # 1. Try exact matching (case-insensitive)
+    df_with_id = df.with_columns(name_lower=pl.col("name").str.to_lowercase())
+    bgg_games_lower = bgg_games.select(
+        pl.col("bgg_id"),
+        name_lower=pl.col("name").str.to_lowercase(),
+    ).unique(subset=["name_lower"])
+
+    # Join on lower name
+    matched = df_with_id.join(
+        bgg_games_lower,
+        on="name_lower",
+        how="left",
+        suffix="_matched",
+    )
+
+    # Update bgg_id if matched and currently null
+    df = matched.with_columns(bgg_id=pl.coalesce("bgg_id", "bgg_id_matched")).drop(
+        "name_lower",
+        "bgg_id_matched",
+    )
+
+    # 2. Try fuzzy matching for remaining nulls
+    still_missing = df.filter(pl.col("bgg_id").is_null()).select("name").unique()
+    if not still_missing.is_empty():
+        LOGGER.info("Performing fuzzy matching for %d games...", len(still_missing))
+
+        bgg_titles = bgg_games["name"].to_list()
+        bgg_id_map = dict(zip(bgg_games["name"], bgg_games["bgg_id"], strict=False))
+
+        fuzzy_results = []
+        for name in still_missing["name"]:
+            best_match, score = process.extractOne(name, bgg_titles)
+            if score >= FUZZY_MATCH_THRESHOLD:
+                bgg_id = bgg_id_map[best_match]
+                LOGGER.info(
+                    "Fuzzy match: '%s' -> '%s' (ID: %d, score: %d)",
+                    name,
+                    best_match,
+                    bgg_id,
+                    score,
+                )
+                fuzzy_results.append({"name": name, "bgg_id_fuzzy": bgg_id})
+            else:
+                LOGGER.debug(
+                    "No confident fuzzy match for '%s' (best: '%s', score: %d)",
+                    name,
+                    best_match,
+                    score,
+                )
+
+        if fuzzy_results:
+            fuzzy_df = pl.DataFrame(
+                fuzzy_results,
+                schema={"name": pl.String, "bgg_id_fuzzy": pl.Int64},
+            )
+            df = (
+                df.join(fuzzy_df, on="name", how="left")
+                .with_columns(
+                    bgg_id=pl.coalesce("bgg_id", "bgg_id_fuzzy"),
+                )
+                .drop("bgg_id_fuzzy")
+            )
+
+    return df
 
 
 def main() -> None:
@@ -58,28 +158,28 @@ def main() -> None:
         sys.exit(1)
 
     LOGGER.info("Processing new reviews from <%s>", args.input)
-    # This uses the existing helper from ratings.py
     new_data = reviews_jl_to_polars(args.input)
     LOGGER.info("Extracted %d items from .jl file", len(new_data))
+
+    # Try to find BGG IDs for new data
+    new_data = find_bgg_ids(new_data, args.bgg_games)
 
     if not args.csv.exists():
         LOGGER.warning("CSV file <%s> does not exist. Creating new one.", args.csv)
         if not args.dry_run:
             args.csv.parent.mkdir(parents=True, exist_ok=True)
             new_data.write_csv(args.csv)
+        else:
+            print(new_data)
         return
 
     LOGGER.info("Reading existing data from <%s>", args.csv)
-    # Ensure bgg_id is read as Int64 to match schema
     existing_data = pl.read_csv(args.csv, schema_overrides={"bgg_id": pl.Int64})
 
     # Combine data using 'diagonal' concatenation
-    # This automatically adds new columns if new reviewers are found
     combined = pl.concat([existing_data, new_data], how="diagonal")
 
     # Deduplicate by URL and Name
-    # We sort by bgg_id (descending, nulls last) so that if we have a match,
-    # the version with a manually filled bgg_id is kept during unique()
     combined = combined.sort("bgg_id", descending=True, nulls_last=True)
     combined = combined.unique(
         subset=["url", "name"],
@@ -92,7 +192,6 @@ def main() -> None:
 
     if args.dry_run:
         LOGGER.info("Dry run: not writing to <%s>", args.csv)
-        # Show a preview of columns and rows
         print(combined)
     else:
         LOGGER.info("Writing updated data to <%s>", args.csv)
