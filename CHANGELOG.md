@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-26
+
 ### Changed
 
 - Cruft update
@@ -57,10 +59,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Kennerspiel model
 
-[Unreleased]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.3.1...master
+[Unreleased]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.4.0...master
+[0.4.0]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.3.1...0.4.0
 [0.3.1]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.3.0...0.3.1
 [0.3.0]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.2.3...0.3.0
 [0.2.3]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.2.2...0.2.3
 [0.2.2]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.2.1...0.2.2
 [0.2.1]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.2.0...0.2.1
 [0.1.0]: https://gitlab.com/recommend.games/spiel-des-jahres/tree/0.1.0
+

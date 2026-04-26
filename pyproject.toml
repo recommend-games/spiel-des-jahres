@@ -1,6 +1,6 @@
 [project]
 name = "spiel-des-jahres"
-version = "0.3.1"
+version = "0.4.0"
 description = "Spiel des Jahres predictions"
 authors = [
     { name = "Markus Shepherd", email = "markus@recommend.games" },
