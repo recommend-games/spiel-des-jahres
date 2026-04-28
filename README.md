@@ -42,6 +42,25 @@ uv sync --all-extras
 uv run pytest
 ```
 
+### Scraping Reviews
+
+Automate the collection of new reviews from `spiel-des-jahres.de`.
+
+1. **Preparation**: Set your OpenAI API key.
+   ```sh
+   export OPENAI_API_KEY="your-api-key-here"
+   ```
+
+2. **Run the Spider**: Crawl the site and extract review data using an LLM.
+   ```sh
+   uv run scrapy runspider src/spiel_des_jahres/review_spider.py -s LLM_API_KEY=$OPENAI_API_KEY
+   ```
+
+3. **Update Database**: Merge the results into the main CSV. The script automatically matches games to BGG IDs (via fuzzy matching against local data) and adds new reviewer columns as needed.
+   ```sh
+   uv run python src/spiel_des_jahres/update_reviews.py $(ls -t results/reviews-*.jl | head -n 1)
+   ```
+
 ### Documentation
 
 The documentation is automatically generated from the content of the [docs directory](https://github.com/recommend-games/spiel-des-jahres/tree/master/docs) and from the docstrings
