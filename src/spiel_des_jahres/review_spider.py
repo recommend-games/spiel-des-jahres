@@ -15,10 +15,12 @@ class SpielReviewSpider(SitemapSpider):
     name = "spiel_des_jahres"
     allowed_domains = ("spiel-des-jahres.de",)
 
-    sitemap_urls = ("https://www.spiel-des-jahres.de/robots.txt",)
+    sitemap_urls = ("https://www.spiel-des-jahres.de/sitemap_index.xml",)
     sitemap_rules = ((r"/kritikenrundschau-", "parse_review"),)
 
     custom_settings = {  # noqa: RUF012
+        "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "DOWNLOAD_DELAY": 0.25,
         "CONCURRENT_REQUESTS_PER_DOMAIN": 4,
         "FEED_EXPORT_BATCH_ITEM_COUNT": 10_000,
