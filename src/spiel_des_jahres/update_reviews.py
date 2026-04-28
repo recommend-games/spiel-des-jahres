@@ -69,49 +69,68 @@ def find_bgg_ids(
         )
         return df
 
-    missing_ids = df.filter(pl.col("bgg_id").is_null())
-    if missing_ids.is_empty():
+    if (missing_count := df.filter(pl.col("bgg_id").is_null()).height) == 0:
         return df
 
-    LOGGER.info("Attempting to find BGG IDs for %d games...", len(missing_ids))
+    LOGGER.info("Attempting to find BGG IDs for %d games...", missing_count)
 
-    # Load BGG games database
-    bgg_games = pl.read_csv(bgg_games_path, schema_overrides={"bgg_id": pl.Int64})
+    bgg_lf = pl.scan_csv(bgg_games_path, schema_overrides={"bgg_id": pl.Int64}).select(
+        "bgg_id",
+        "name",
+        name_lower=pl.col("name").str.to_lowercase(),
+    )
 
     # 1. Try exact matching (case-insensitive)
-    df_with_id = df.with_columns(name_lower=pl.col("name").str.to_lowercase())
-    bgg_games_lower = bgg_games.select(
-        pl.col("bgg_id"),
-        name_lower=pl.col("name").str.to_lowercase(),
-    ).unique(subset=["name_lower"])
+    bgg_exact = bgg_lf.with_columns(count=pl.len().over("name_lower"))
 
-    # Join on lower name
-    matched = df_with_id.join(
-        bgg_games_lower,
-        on="name_lower",
-        how="left",
-        suffix="_matched",
+    df = (
+        df.lazy()
+        .with_columns(name_lower=pl.col("name").str.to_lowercase())
+        .join(
+            bgg_exact.filter(pl.col("count") == 1).select("bgg_id", "name_lower"),
+            on="name_lower",
+            how="left",
+            suffix="_matched",
+        )
+        .join(
+            bgg_exact.filter(pl.col("count") > 1)
+            .select("name_lower")
+            .unique()
+            .with_columns(is_ambiguous=pl.lit(value=True)),
+            on="name_lower",
+            how="left",
+        )
+        .with_columns(bgg_id=pl.coalesce("bgg_id", "bgg_id_matched"))
+        .collect()
     )
 
-    # Update bgg_id if matched and currently null
-    df = matched.with_columns(bgg_id=pl.coalesce("bgg_id", "bgg_id_matched")).drop(
-        "name_lower",
-        "bgg_id_matched",
-    )
+    for name in df.filter(
+        pl.col("is_ambiguous").fill_null(value=False) & pl.col("bgg_id").is_null(),
+    )["name"].unique():
+        LOGGER.warning(
+            "Exact match skipped for '%s' because of BGG name ambiguity.",
+            name,
+        )
+
+    df = df.drop("name_lower", "bgg_id_matched", "is_ambiguous")
 
     # 2. Try fuzzy matching for remaining nulls
-    still_missing = df.filter(pl.col("bgg_id").is_null()).select("name").unique()
-    if not still_missing.is_empty():
-        LOGGER.info("Performing fuzzy matching for %d games...", len(still_missing))
+    still_missing = df.filter(pl.col("bgg_id").is_null())["name"].unique().to_list()
+    if not still_missing:
+        return df
 
-        bgg_titles = bgg_games["name"].to_list()
-        bgg_id_map = dict(zip(bgg_games["name"], bgg_games["bgg_id"], strict=False))
+    LOGGER.info("Performing fuzzy matching for %d games...", len(still_missing))
 
-        fuzzy_results = []
-        for name in still_missing["name"]:
-            best_match, score = process.extractOne(name, bgg_titles)
-            if score >= FUZZY_MATCH_THRESHOLD:
-                bgg_id = bgg_id_map[best_match]
+    bgg_fuzzy = bgg_lf.with_columns(count=pl.len().over("name")).collect()
+    bgg_id_map = dict(
+        bgg_fuzzy.filter(pl.col("count") == 1).select("name", "bgg_id").iter_rows(),
+    )
+
+    fuzzy_results = []
+    for name in still_missing:
+        best_match, score = process.extractOne(name, bgg_fuzzy["name"])
+        if score >= FUZZY_MATCH_THRESHOLD:
+            if bgg_id := bgg_id_map.get(best_match):
                 LOGGER.info(
                     "Fuzzy match: '%s' -> '%s' (ID: %d, score: %d)",
                     name,
@@ -121,25 +140,26 @@ def find_bgg_ids(
                 )
                 fuzzy_results.append({"name": name, "bgg_id_fuzzy": bgg_id})
             else:
-                LOGGER.debug(
-                    "No confident fuzzy match for '%s' (best: '%s', score: %d)",
+                LOGGER.warning(
+                    "Fuzzy match skipped: '%s' -> '%s' (score: %d) - ambiguous in BGG.",
                     name,
                     best_match,
                     score,
                 )
+        else:
+            LOGGER.debug(
+                "No confident fuzzy match for '%s' (best: '%s', score: %d)",
+                name,
+                best_match,
+                score,
+            )
 
-        if fuzzy_results:
-            fuzzy_df = pl.DataFrame(
-                fuzzy_results,
-                schema={"name": pl.String, "bgg_id_fuzzy": pl.Int64},
-            )
-            df = (
-                df.join(fuzzy_df, on="name", how="left")
-                .with_columns(
-                    bgg_id=pl.coalesce("bgg_id", "bgg_id_fuzzy"),
-                )
-                .drop("bgg_id_fuzzy")
-            )
+    if fuzzy_results:
+        df = (
+            df.join(pl.DataFrame(fuzzy_results), on="name", how="left")
+            .with_columns(bgg_id=pl.coalesce("bgg_id", "bgg_id_fuzzy"))
+            .drop("bgg_id_fuzzy")
+        )
 
     return df
 
