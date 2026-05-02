@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -50,10 +50,10 @@ class LLMExtractionPipeline:
         api_key: str | None = None,
         model: str = "gpt-4o-mini",
     ):
-        self.client = OpenAI(base_url=api_base_url, api_key=api_key)
+        self.client = AsyncOpenAI(base_url=api_base_url, api_key=api_key)
         self.model = model
 
-    def process_item(
+    async def process_item(
         self,
         item: dict[str, Any],
         spider: Spider,
@@ -62,8 +62,7 @@ class LLMExtractionPipeline:
             return item
 
         try:
-            # TODO: this call should be async
-            response = self.client.responses.parse(
+            response = await self.client.responses.parse(
                 model=self.model,
                 input=item["raw_text"],
                 instructions=(
