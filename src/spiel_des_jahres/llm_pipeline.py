@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Literal
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+from scrapy.exceptions import NotConfigured
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -60,10 +61,16 @@ class ReviewList(BaseModel):
 class LLMExtractionPipeline:
     @classmethod
     def from_crawler(cls, crawler: Crawler) -> LLMExtractionPipeline:
+        api_key = crawler.settings.get("LLM_API_KEY")
+        model = crawler.settings.get("LLM_MODEL")
+
+        if not api_key or not model:
+            raise NotConfigured
+
         return cls(
+            model=model,
+            api_key=api_key,
             api_base_url=crawler.settings.get("LLM_API_BASE_URL"),
-            api_key=crawler.settings.get("LLM_API_KEY"),
-            model=crawler.settings.get("LLM_MODEL") or "gpt-4o-mini",
             temperature=crawler.settings.getfloat("LLM_TEMPERATURE", 0.0),
             max_output_tokens=crawler.settings.getint("LLM_MAX_OUTPUT_TOKENS", 1000),
         )
@@ -71,9 +78,9 @@ class LLMExtractionPipeline:
     def __init__(
         self,
         *,
-        api_base_url: str | None = None,
+        model: str,
         api_key: str | None = None,
-        model: str = "gpt-4o-mini",
+        api_base_url: str | None = None,
         temperature: float = 0.0,
         max_output_tokens: int = 1000,
     ):

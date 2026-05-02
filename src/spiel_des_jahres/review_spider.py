@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
@@ -35,6 +36,12 @@ class SpielReviewSpider(SitemapSpider):
         "ITEM_PIPELINES": {
             "spiel_des_jahres.llm_pipeline.LLMExtractionPipeline": 500,
         },
+        # LLM Pipeline Settings
+        "LLM_MODEL": os.getenv("LLM_MODEL"),
+        "LLM_API_KEY": os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY"),
+        "LLM_API_BASE_URL": os.getenv("LLM_API_BASE_URL"),
+        "LLM_TEMPERATURE": float(os.getenv("LLM_TEMPERATURE") or 0.0),
+        "LLM_MAX_OUTPUT_TOKENS": int(os.getenv("LLM_MAX_OUTPUT_TOKENS") or 1000),
     }
 
     def parse_review(self, response: Response) -> dict[str, Any] | Request | None:
