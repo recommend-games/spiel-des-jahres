@@ -67,12 +67,19 @@ class LLMExtractionPipeline:
         if not api_key or not model:
             raise NotConfigured
 
+        # Get settings as strings first to handle empty values as None
+        temp = crawler.settings.get("LLM_TEMPERATURE")
+        temperature = float(temp) if temp is not None else None
+
+        tokens = crawler.settings.get("LLM_MAX_OUTPUT_TOKENS")
+        max_output_tokens = int(tokens) if tokens is not None else None
+
         return cls(
             model=model,
             api_key=api_key,
             api_base_url=crawler.settings.get("LLM_API_BASE_URL"),
-            temperature=crawler.settings.getfloat("LLM_TEMPERATURE", 0.0),
-            max_output_tokens=crawler.settings.getint("LLM_MAX_OUTPUT_TOKENS", 1000),
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
         )
 
     def __init__(
@@ -81,8 +88,8 @@ class LLMExtractionPipeline:
         model: str,
         api_key: str | None = None,
         api_base_url: str | None = None,
-        temperature: float = 0.0,
-        max_output_tokens: int = 1000,
+        temperature: float | None = None,
+        max_output_tokens: int | None = None,
     ):
         self.client = AsyncOpenAI(base_url=api_base_url, api_key=api_key)
         self.model = model
@@ -104,14 +111,18 @@ class LLMExtractionPipeline:
         prompt_content = (
             f"CONTEXT:\nTitle: {title}\nDescription: {description}\n\nTEXT:\n{text}"
         )
-        response = await self.client.responses.parse(
-            model=self.model,
-            input=prompt_content,
-            instructions=LLM_INSTRUCTIONS,
-            text_format=ReviewList,
-            temperature=self.temperature,
-            max_output_tokens=self.max_output_tokens,
-        )
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "input": prompt_content,
+            "instructions": LLM_INSTRUCTIONS,
+            "text_format": ReviewList,
+        }
+        if self.temperature is not None:
+            kwargs["temperature"] = self.temperature
+        if self.max_output_tokens is not None:
+            kwargs["max_output_tokens"] = self.max_output_tokens
+
+        response = await self.client.responses.parse(**kwargs)
 
         if spider and response.usage:
             usage = response.usage
