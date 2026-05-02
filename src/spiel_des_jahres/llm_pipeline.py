@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
-import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from openai import OpenAI
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from typing import Any
@@ -13,9 +12,29 @@ if TYPE_CHECKING:
     from scrapy.spiders import Spider
 
 
-class LLMExtractionPipeline:
-    json_regex = re.compile(r"\[.*\]", re.DOTALL)
+class Review(BaseModel):
+    game_title: str = Field(description="The title of the board game.")
+    reviewer_name: str = Field(description="The name of the reviewer.")
+    reviewer_id: str = Field(description="The reviewer ID as lower snake case.")
+    score: str | None = Field(
+        description="The review score or category, e.g. '3 out of 5'.",
+    )
+    summary: str = Field(description="A short summary of their opinion.")
+    sentiment: Literal["positive", "neutral", "negative"] = Field(
+        description="The sentiment of the review.",
+    )
+    rating: int = Field(
+        description="A 1–10 rating derived from their score and/or sentiment.",
+        ge=1,
+        le=10,
+    )
 
+
+class ReviewList(BaseModel):
+    reviews: list[Review] = Field(description="A list of extracted reviews.")
+
+
+class LLMExtractionPipeline:
     @classmethod
     def from_crawler(cls, crawler: Crawler) -> LLMExtractionPipeline:
         return cls(
@@ -42,61 +61,27 @@ class LLMExtractionPipeline:
         if not item or not item.get("raw_text"):
             return item
 
-        prompt = f"""The following text is a collection of board game reviews.
-For each game and reviewer mentioned, extract:
-
-- game title,
-- reviewer name (both plain and reviewer ID as lower snake case),
-- their review score or category if any,
-  including max score (e.g. 3 out of 5 or "Excellent"),
-- a short summary of their opinion,
-- the sentiment ('positive', 'neutral', 'negative'),
-- a 1–10 rating derived from their score and/or sentiment.
-
-Return a JSON array (no other markdown etc) with objects having these keys:
-game_title, reviewer_name, reviewer_id, score, summary, sentiment, rating.
-
-TEXT:
-\"\"\"
-{item["raw_text"]}
-\"\"\"
-"""
-
         try:
             # TODO: this call should be async
-            response = self.client.responses.create(
+            response = self.client.responses.parse(
                 model=self.model,
-                input=prompt,
-                # TODO: instructions
+                input=item["raw_text"],
+                instructions=(
+                    "The following text is a collection of board game reviews. "
+                    "For each game and reviewer mentioned, extract the details "
+                    "into the structured format."
+                ),
+                text_format=ReviewList,
             )
-            content = response.output_text
+            if response.output_parsed:
+                item["reviews"] = [
+                    r.model_dump() for r in response.output_parsed.reviews
+                ]
+            else:
+                spider.logger.error("LLM returned empty or unparseable content")
+                item["reviews"] = None
         except Exception:
             spider.logger.exception("LLM parsing failed")
-            content = None
-
-        if not content:
-            spider.logger.error("LLM returned empty content")
             item["reviews"] = None
-            return item
-
-        try:
-            item["reviews"] = json.loads(content)
-        except Exception:
-            spider.logger.exception("Failed to parse LLM response")
-        else:
-            return item
-
-        match = self.json_regex.search(content)
-
-        if not match:
-            spider.logger.error("LLM returned invalid JSON")
-            item["reviews"] = content
-            return item
-
-        try:
-            item["reviews"] = json.loads(match.group(0))
-        except Exception:
-            spider.logger.exception("Failed to parse LLM response")
-            item["reviews"] = match.group(0)
 
         return item
