@@ -4,12 +4,35 @@ from typing import TYPE_CHECKING, Literal
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 if TYPE_CHECKING:
     from typing import Any
 
     from scrapy.crawler import Crawler
     from scrapy.spiders import Spider
+
+
+LLM_INSTRUCTIONS = """
+The following text is a collection of board game reviews.
+For each game and reviewer mentioned, extract the details into the structured format.
+
+- If a reviewer's name is not explicitly mentioned but an opinion is clearly
+  attributed (e.g., via a quote), use the name from context.
+- If a specific score or category is missing, set `score` to null.
+
+For the 1-10 rating, use this rubric:
+- 9-10: Glowing, exceptional, 'must play';
+- 7-8: Very positive, minor flaws;
+- 5-6: Mixed or neutral, significant reservations;
+- 3-4: Mostly negative, 'disappointing';
+- 1-2: Extremely negative, 'avoid'.
+""".strip()
 
 
 class Review(BaseModel):
@@ -41,6 +64,8 @@ class LLMExtractionPipeline:
             api_base_url=crawler.settings.get("LLM_API_BASE_URL"),
             api_key=crawler.settings.get("LLM_API_KEY"),
             model=crawler.settings.get("LLM_MODEL") or "gpt-4o-mini",
+            temperature=crawler.settings.getfloat("LLM_TEMPERATURE", 0.0),
+            max_output_tokens=crawler.settings.getint("LLM_MAX_OUTPUT_TOKENS", 1000),
         )
 
     def __init__(
@@ -49,9 +74,29 @@ class LLMExtractionPipeline:
         api_base_url: str | None = None,
         api_key: str | None = None,
         model: str = "gpt-4o-mini",
+        temperature: float = 0.0,
+        max_output_tokens: int = 1000,
     ):
         self.client = AsyncOpenAI(base_url=api_base_url, api_key=api_key)
         self.model = model
+        self.temperature = temperature
+        self.max_output_tokens = max_output_tokens
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+    )
+    async def _call_llm(self, text: str) -> ReviewList | None:
+        response = await self.client.responses.parse(
+            model=self.model,
+            input=text,
+            instructions=LLM_INSTRUCTIONS,
+            text_format=ReviewList,
+            temperature=self.temperature,
+            max_output_tokens=self.max_output_tokens,
+        )
+        return response.output_parsed
 
     async def process_item(
         self,
@@ -62,25 +107,14 @@ class LLMExtractionPipeline:
             return item
 
         try:
-            response = await self.client.responses.parse(
-                model=self.model,
-                input=item["raw_text"],
-                instructions=(
-                    "The following text is a collection of board game reviews. "
-                    "For each game and reviewer mentioned, extract the details "
-                    "into the structured format."
-                ),
-                text_format=ReviewList,
-            )
-            if response.output_parsed:
-                item["reviews"] = [
-                    r.model_dump() for r in response.output_parsed.reviews
-                ]
+            parsed = await self._call_llm(item["raw_text"])
+            if parsed:
+                item["reviews"] = [r.model_dump() for r in parsed.reviews]
             else:
                 spider.logger.error("LLM returned empty or unparseable content")
                 item["reviews"] = None
         except Exception:
-            spider.logger.exception("LLM parsing failed")
+            spider.logger.exception("LLM parsing failed after retries")
             item["reviews"] = None
 
         return item
