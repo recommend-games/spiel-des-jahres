@@ -20,19 +20,23 @@ class SpielReviewSpider(SitemapSpider):
     sitemap_rules = ((r"/kritikenrundschau-", "parse_review"),)
 
     custom_settings = {  # noqa: RUF012
-        "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "DOWNLOAD_DELAY": 0.25,
-        "CONCURRENT_REQUESTS_PER_DOMAIN": 4,
-        "FEED_EXPORT_BATCH_ITEM_COUNT": 10_000,
+        "USER_AGENT": os.getenv("SCRAPER_USER_AGENT"),
+        "DOWNLOAD_DELAY": float(os.getenv("SCRAPER_DOWNLOAD_DELAY") or 1.0),
+        "CONCURRENT_REQUESTS_PER_DOMAIN": int(
+            os.getenv("SCRAPER_CONCURRENT_REQUESTS") or 4,
+        ),
+        "FEED_EXPORT_BATCH_ITEM_COUNT": int(
+            os.getenv("SCRAPER_EXPORT_BATCH_ITEM_COUNT") or 10_000,
+        ),
         "FEEDS": {
-            "results/reviews-%(time)s-%(batch_id)05d.jl": {
+            os.getenv("SCRAPER_FEED_URI")
+            or "results/reviews-%(time)s-%(batch_id)05d.jl": {
                 "format": "jsonlines",
                 "overwrite": False,
                 "store_empty": False,
             },
         },
-        "JOBDIR": ".jobs",
+        "JOBDIR": os.getenv("SCRAPER_JOBDIR") or ".jobs",
         "ITEM_PIPELINES": {
             "spiel_des_jahres.llm_pipeline.LLMExtractionPipeline": 500,
         },
