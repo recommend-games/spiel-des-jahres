@@ -87,15 +87,40 @@ class LLMExtractionPipeline:
         wait=wait_exponential(multiplier=1, min=2, max=10),
         stop=stop_after_attempt(3),
     )
-    async def _call_llm(self, text: str) -> ReviewList | None:
+    async def _call_llm(
+        self,
+        text: str,
+        title: str | None = None,
+        description: str | None = None,
+        spider: Spider | None = None,
+    ) -> ReviewList | None:
+        prompt_content = (
+            f"CONTEXT:\nTitle: {title}\nDescription: {description}\n\nTEXT:\n{text}"
+        )
         response = await self.client.responses.parse(
             model=self.model,
-            input=text,
+            input=prompt_content,
             instructions=LLM_INSTRUCTIONS,
             text_format=ReviewList,
             temperature=self.temperature,
             max_output_tokens=self.max_output_tokens,
         )
+
+        if spider and response.usage:
+            usage = response.usage
+            stats = spider.crawler.stats
+            if stats:
+                stats.inc_value("llm/input_tokens", usage.input_tokens)
+                stats.inc_value("llm/output_tokens", usage.output_tokens)
+                stats.inc_value("llm/total_tokens", usage.total_tokens)
+
+                if stats.get_value("llm/total_tokens", 0) % 50_000 < usage.total_tokens:
+                    total_tokens = stats.get_value("llm/total_tokens", 0)
+                    spider.logger.info(
+                        "LLM usage check-in: %d total tokens so far",
+                        total_tokens,
+                    )
+
         return response.output_parsed
 
     async def process_item(
@@ -107,7 +132,12 @@ class LLMExtractionPipeline:
             return item
 
         try:
-            parsed = await self._call_llm(item["raw_text"])
+            parsed = await self._call_llm(
+                text=item["raw_text"],
+                title=item.get("title"),
+                description=item.get("description"),
+                spider=spider,
+            )
             if parsed:
                 item["reviews"] = [r.model_dump() for r in parsed.reviews]
             else:
