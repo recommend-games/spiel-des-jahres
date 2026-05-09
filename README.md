@@ -46,19 +46,20 @@ uv run pytest
 
 Automate the collection of new reviews from `spiel-des-jahres.de`.
 
-1. **Preparation**: Set your OpenAI API key.
+1. **Preparation**: Set your OpenAI API key and the LLM model to use.
    ```sh
-   export OPENAI_API_KEY="your-api-key-here"
+   export LLM_API_KEY="your-api-key-here"
+   export LLM_MODEL="gpt-5-nano"
    ```
 
 2. **Run the Spider**: Crawl the site and extract review data using an LLM.
    ```sh
-   uv run scrapy runspider src/spiel_des_jahres/review_spider.py -s LLM_API_KEY=$OPENAI_API_KEY
+   uv run --extra scraper scrapy runspider src/spiel_des_jahres/review_spider.py
    ```
 
-3. **Update Database**: Merge the results into the main CSV. The script automatically matches games to BGG IDs (via fuzzy matching against local data) and adds new reviewer columns as needed.
+3. **Update Database**: Merge the results into the main CSV. The script automatically matches games to BGG IDs (via fuzzy matching against local data).
    ```sh
-   uv run python src/spiel_des_jahres/update_reviews.py $(ls -t results/reviews-*.jl | head -n 1)
+   uv run python -m spiel_des_jahres.update_reviews $(ls -t results/reviews-*.jl | head -n 1)
    ```
 
 ### Documentation

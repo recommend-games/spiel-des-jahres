@@ -42,7 +42,7 @@ class SpielReviewSpider(SitemapSpider):
         },
         # LLM Pipeline Settings
         "LLM_MODEL": os.getenv("LLM_MODEL") or None,
-        "LLM_API_KEY": os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY"),
+        "LLM_API_KEY": os.getenv("LLM_API_KEY"),
         "LLM_API_BASE_URL": os.getenv("LLM_API_BASE_URL") or None,
         "LLM_TEMPERATURE": os.getenv("LLM_TEMPERATURE") or None,
         "LLM_MAX_OUTPUT_TOKENS": os.getenv("LLM_MAX_OUTPUT_TOKENS") or None,
