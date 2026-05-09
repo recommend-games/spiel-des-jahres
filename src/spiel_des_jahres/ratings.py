@@ -42,7 +42,15 @@ def _parse_reviews_jl(
                 continue
 
             for review in article_reviews:
-                yield {**article_data, **review}
+                if not isinstance(review, dict):
+                    continue
+                yield {
+                    "url": article_data["url"],
+                    "date_published": article_data["date_published"],
+                    "game_title": review.get("game_title"),
+                    "reviewer_id": review.get("reviewer_id"),
+                    "rating": review.get("rating"),
+                }
 
 
 def reviews_jl_to_polars(
@@ -50,13 +58,17 @@ def reviews_jl_to_polars(
 ) -> pl.DataFrame:
     import polars as pl  # noqa: PLC0415
 
-    reviews = pl.LazyFrame(_parse_reviews_jl(file_path)).select(
-        pl.lit(None).alias("bgg_id"),
-        pl.col("game_title").alias("name"),
-        "url",
-        "date_published",
-        "reviewer_id",
-        "rating",
+    reviews = (
+        pl.LazyFrame(_parse_reviews_jl(file_path))
+        .select(
+            pl.lit(None).alias("bgg_id"),
+            pl.col("game_title").alias("name"),
+            "url",
+            "date_published",
+            "reviewer_id",
+            "rating",
+        )
+        .unique(subset=["url", "name", "reviewer_id"], keep="first")
     )
 
     reviewers = (
