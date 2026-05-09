@@ -38,12 +38,19 @@ For the 1-10 rating, use this rubric:
 
 class Review(BaseModel):
     game_title: str = Field(description="The title of the board game.")
-    reviewer_name: str = Field(description="The name of the reviewer.")
-    reviewer_id: str = Field(description="The reviewer ID as lower snake case.")
-    score: str | None = Field(
-        description="The review score or category, e.g. '3 out of 5'.",
+    reviewer_name: str = Field(
+        description="The name of the reviewer, e.g., 'John Doe'.",
     )
-    summary: str = Field(description="A short summary of their opinion.")
+    reviewer_id: str = Field(
+        description="The reviewer ID as lower snake case, e.g., 'john_doe'.",
+    )
+    score: str | None = Field(
+        description="The review score or category, e.g. '3 out of 5' or 'excellent'.",
+    )
+    summary: str = Field(
+        description="A short summary of their opinion, "
+        "including key points, praises and criticisms.",
+    )
     sentiment: Literal["positive", "neutral", "negative"] = Field(
         description="The sentiment of the review.",
     )
