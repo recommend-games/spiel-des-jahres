@@ -42,25 +42,51 @@ uv sync --all-extras
 uv run pytest
 ```
 
-### Scraping Reviews
+### Generating Annual Predictions
 
-Automate the collection of new reviews from `spiel-des-jahres.de`.
+Generating the annual predictions for the Spiel and Kennerspiel des Jahres involves gathering review data, updating local datasets, training models, and finally running the prediction notebook.
 
-1. **Preparation**: Set your OpenAI API key and the LLM model to use.
-   ```sh
-   export LLM_API_KEY="your-api-key-here"
-   export LLM_MODEL="gpt-5-nano"
-   ```
+**Required External Datasets:**
+Before starting, ensure you have the following external datasets available (paths are configurable but default to these locations relative to the project root):
+*   **BGG Games Dataset:** `../../board-game-data/scraped/bgg_GameItem.csv` (Used for matching BGG IDs during review updates and providing game features for predictions).
+*   **Recommender Model:** `../../recommend-games-server/data/recommender_light.npz` (Used in the final notebook to calculate jury-specific recommendation metrics).
 
-2. **Run the Spider**: Crawl the site and extract review data using an LLM.
-   ```sh
-   uv run --extra scraper scrapy runspider src/spiel_des_jahres/review_spider.py
-   ```
+**1. Scrape New Reviews (Kritikenrundschau)**
+Automate the collection of new reviews from the official `spiel-des-jahres.de` Kritikenrundschau.
+*   **Preparation**: Set your OpenAI API key and the LLM model to use for parsing unstructured review text.
+    ```sh
+    export LLM_API_KEY="your-api-key-here"
+    export LLM_MODEL="gpt-4o"
+    ```
+*   **Run the Spider**: Crawl the site and extract review data into a JSON Lines file.
+    ```sh
+    uv run --extra scraper scrapy runspider src/spiel_des_jahres/review_spider.py
+    ```
 
-3. **Update Database**: Merge the results into the main CSV. The script automatically matches games to BGG IDs (via fuzzy matching against local data).
-   ```sh
-   uv run python -m spiel_des_jahres.update_reviews $(ls -t results/reviews-*.jl | head -n 1)
-   ```
+**2. Update Master Review Data**
+Merge the newly scraped reviews from the spider's `.jl` output into the canonical dataset (`src/spiel_des_jahres/data/kritikenrundschau.csv`). The script automatically matches game names to BGG IDs using exact and fuzzy matching against the external **BGG Games Dataset**.
+```sh
+uv run python -m spiel_des_jahres.update_reviews $(ls -t results/reviews-*.jl | head -n 1)
+```
+
+**3. Prepare the Annual Data Directory**
+The predictions rely on a specific data directory for the target year (e.g., `src/spiel_des_jahres/data/2026/`).
+*   **`reviews.csv`**: This file acts as the primary input for the current year's candidate pool and jury preferences. It is derived manually or programmatically from the master `kritikenrundschau.csv` updated in Step 2. It contains all candidates (`bgg_id`, `name`) and columns for each active jury member's ratings.
+*   **`exclude.csv`**: Contains any `bgg_id`s of games that should be explicitly disqualified or excluded from consideration for the current year.
+
+**4. Train the Kennerspiel Model**
+The predictions require a machine learning model that predicts whether a game belongs in the "Kennerspiel" category based on BGG complexity, votes, and categories.
+```sh
+uv run python -m spiel_des_jahres.kennerspiel ./kennerspiel.joblib
+```
+*(Alternative: You can run the `notebooks/Kennerspiel.py` notebook to retrain the model and inspect its accuracy).*
+
+**5. Generate the Final Predictions**
+With the data prepared and the Kennerspiel model trained, generate the final predictions.
+*   Open the Jupyter Notebook `notebooks/SdJ predictions.py`.
+*   Update the `year` parameter in the `sdj_predictions` function call to the target year.
+*   Ensure that the paths to your external data sources (`games_path`, `kennerspiel_model`, `recommender_model`) are correct.
+*   Run the notebook end-to-end. This script joins the candidate pool from `reviews.csv` with the `kennerspiel_model` probabilities and `recommender_model` metrics to compute the final `sdj_score` and `sdj_rank`.
 
 ### Documentation
 
