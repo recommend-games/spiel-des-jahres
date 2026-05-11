@@ -75,8 +75,17 @@ uv run python -m spiel_des_jahres.ratings --item-type rating \
 ```
 
 **4. Retrain the Recommender Model**
-The exported items in the feed directories must be merged with broader BGG scrapes and used to train the recommendation engine.
-1.  **Merge**: Use [board-game-merger](https://gitlab.com/recommend.games/board-game-merger) to combine the items in `../board-game-scraper/feeds/bgg/` with other scraper results into a unified dataset.
+The exported items in the feed directories must be merged with broader BGG scrapes to update the master dataset, which is then used to train the recommendation engine.
+
+1.  **Merge**: Update the master dataset in `../board-game-data/` by running the following command from the `../board-game-merger/` directory:
+    ```sh
+    cd ../board-game-merger/
+    poetry run python -m board_game_merger all \
+        --progress-bar \
+        --verbose \
+        --clean-results \
+        --overwrite
+    ```
 2.  **Train**: Use [board-game-recommender](https://gitlab.com/recommend.games/board-game-recommender) to retrain the model. This generates a new `recommender_light.npz` artifact.
 3.  **Deploy**: If using the API, ensure the new ratings are deployed to the `recommend.games` server.
 
