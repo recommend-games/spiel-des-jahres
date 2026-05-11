@@ -22,6 +22,15 @@ Spiel des Jahres predictions
 
 The full prediction lifecycle involves gathering review data, exporting jury preferences to the recommendation engine, retraining the model, and finally generating rankings.
 
+### Project Structure
+
+This project assumes a sibling directory structure for its dependencies:
+*   `board-game-data/`: Master datasets.
+*   `board-game-scraper/`: Scraper feeds and local `.jl` items.
+*   `board-game-merger/`: Data merging tools.
+*   `recommend-games-server/`: Recommender training and deployment.
+*   `spiel-des-jahres/`: This repository.
+
 **Required External Datasets:**
 *   **BGG Games Dataset:** `../board-game-data/scraped/bgg_GameItem.csv` (Used for matching BGG IDs and game features).
 *   **Recommender Model:** `artefacts/recommender_light.npz` (The artefact updated in Step 4).
@@ -30,6 +39,7 @@ The full prediction lifecycle involves gathering review data, exporting jury pre
 Collect new reviews from the `spiel-des-jahres.de` Kritikenrundschau and update the master dataset.
 ```sh
 # 1a. Run the spider (requires LLM_API_KEY)
+mkdir -p results
 uv run --extra scraper scrapy runspider src/spiel_des_jahres/review_spider.py
 
 # 1b. Update master kritikenrundschau.csv
@@ -43,8 +53,8 @@ YEAR=$(date +%Y)
 mkdir -p "src/spiel_des_jahres/data/${YEAR}"
 mkdir -p artefacts
 ```
-*   **`reviews.csv`**: The candidate pool for the target year (derived from `kritikenrundschau.csv`).
-*   **`exclude.csv`**: BGG IDs of games to disqualify (e.g., previous winners).
+*   **`reviews.csv`**: The candidate pool for the target year. Typically manually filtered from `kritikenrundschau.csv` to include only eligible games for the current cycle.
+*   **`exclude.csv`**: BGG IDs of games to disqualify (e.g., previous winners or ineligible reprints). One BGG ID per line under a `bgg_id` header.
 
 **3. Export Scraper Items (.jl)**
 Convert local reviews and historical awards into "scraper items" (User and Rating objects) and store them in the [board-game-scraper](https://gitlab.com/recommend.games/board-game-scraper) feed directories.
