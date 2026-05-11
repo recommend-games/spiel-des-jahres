@@ -18,38 +18,14 @@
 
 Spiel des Jahres predictions
 
-## Installation
-
-```sh
-pip install spiel-des-jahres
-```
-
-## Development
-
-* Clone this repository
-* Requirements:
-  * [uv](https://docs.astral.sh/uv/)
-  * Python 3.10+
-* Create a virtual environment and install the dependencies
-
-```sh
-uv sync --all-extras
-```
-
-### Testing
-
-```sh
-uv run pytest
-```
-
-### Generating Annual Predictions
+## Generating Annual Predictions
 
 Generating the annual predictions for the Spiel and Kennerspiel des Jahres involves gathering review data, updating local datasets, training models, and finally running the prediction notebook.
 
 **Required External Datasets:**
 Before starting, ensure you have the following external datasets available (paths are configurable but default to these locations relative to the project root):
-*   **BGG Games Dataset:** `../../board-game-data/scraped/bgg_GameItem.csv` (Used for matching BGG IDs during review updates and providing game features for predictions).
-*   **Recommender Model:** `../../recommend-games-server/data/recommender_light.npz` (Used in the final notebook to calculate jury-specific recommendation metrics).
+*   **BGG Games Dataset:** `../board-game-data/scraped/bgg_GameItem.csv` (Used for matching BGG IDs during review updates and providing game features for predictions).
+*   **Recommender Model:** `../recommend-games-server/data/recommender_light.npz` (Used in the final notebook to calculate jury-specific recommendation metrics).
 
 **1. Scrape New Reviews (Kritikenrundschau)**
 Automate the collection of new reviews from the official `spiel-des-jahres.de` Kritikenrundschau.
@@ -87,6 +63,30 @@ With the data prepared and the Kennerspiel model trained, generate the final pre
 *   Update the `year` parameter in the `sdj_predictions` function call to the target year.
 *   Ensure that the paths to your external data sources (`games_path`, `kennerspiel_model`, `recommender_model`) are correct.
 *   Run the notebook end-to-end. This script joins the candidate pool from `reviews.csv` with the `kennerspiel_model` probabilities and `recommender_model` metrics to compute the final `sdj_score` and `sdj_rank`.
+
+## Installation
+
+```sh
+pip install spiel-des-jahres
+```
+
+## Development
+
+* Clone this repository
+* Requirements:
+  * [uv](https://docs.astral.sh/uv/)
+  * Python 3.10+
+* Create a virtual environment and install the dependencies
+
+```sh
+uv sync --all-extras
+```
+
+### Testing
+
+```sh
+uv run pytest
+```
 
 ### Documentation
 
