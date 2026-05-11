@@ -24,7 +24,7 @@ The full prediction lifecycle involves gathering review data, exporting jury pre
 
 **Required External Datasets:**
 *   **BGG Games Dataset:** `../board-game-data/scraped/bgg_GameItem.csv` (Used for matching BGG IDs and game features).
-*   **Recommender Model:** `artifacts/recommender_light.npz` (The artifact updated in Step 4).
+*   **Recommender Model:** `artefacts/recommender_light.npz` (The artefact updated in Step 4).
 
 **1. Scrape & Update Master Reviews**
 Collect new reviews from the `spiel-des-jahres.de` Kritikenrundschau and update the master dataset.
@@ -89,14 +89,14 @@ The exported items in the feed directories must be merged with broader BGG scrap
 2.  **Train**: Retrain the BGG recommender model by running the following command from the `../recommend-games-server/` directory:
     ```sh
     cd ../recommend-games-server/
-    pipenv run pynt "trainbgg[out_path_light=$(pwd)/../spiel-des-jahres/artifacts/recommender_light.npz]"
+    pipenv run pynt "trainbgg[out_path_light=$(pwd)/../spiel-des-jahres/artefacts/recommender_light.npz]"
     ```
-    This generates a new `recommender_light.npz` artifact directly in this project's `artifacts/` directory.
+    This generates a new `recommender_light.npz` artefact directly in this project's `artefacts/` directory.
 
 **5. Train the Kennerspiel Model**
 Train the local classifier that identifies "Kennerspiel" candidates.
 ```sh
-uv run python -m spiel_des_jahres.kennerspiel artifacts/kennerspiel.joblib
+uv run python -m spiel_des_jahres.kennerspiel artefacts/kennerspiel.joblib
 ```
 
 **6. Generate Final Rankings**
@@ -104,8 +104,8 @@ With the data prepared and the models updated, generate the final rankings.
 ```sh
 uv run python -m spiel_des_jahres.predictions \
     --year "${YEAR}" \
-    --recommender-model artifacts/recommender_light.npz \
-    --kennerspiel-model artifacts/kennerspiel.joblib \
+    --recommender-model artefacts/recommender_light.npz \
+    --kennerspiel-model artefacts/kennerspiel.joblib \
     --output predictions.csv
 ```
 *(Alternative: You can run the `notebooks/SdJ predictions.py` notebook to interactively explore the rankings).*

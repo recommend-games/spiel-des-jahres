@@ -523,7 +523,7 @@ def _parse_args() -> argparse.Namespace:
         "-r",
         type=str,
         default="../recommend-games-server/data/recommender_light.npz",
-        help="Path to the recommender model artifact.",
+        help="Path to the recommender model artefact.",
     )
     parser.add_argument(
         "--main-weight",
