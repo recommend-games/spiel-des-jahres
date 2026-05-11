@@ -16,9 +16,7 @@
 
 ---
 
-Spiel des Jahres predictions
-
-### Generating Annual Predictions
+## Generating Annual Predictions
 
 The full prediction lifecycle involves gathering review data, exporting jury preferences to the recommendation engine, retraining the model, and finally generating rankings.
 
@@ -31,11 +29,13 @@ This project assumes a sibling directory structure for its dependencies:
 *   `recommend-games-server/`: Recommender training and deployment.
 *   `spiel-des-jahres/`: This repository.
 
-**Required External Datasets:**
+### Required External Datasets
+
 *   **BGG Games Dataset:** `../board-game-data/scraped/bgg_GameItem.csv` (Used for matching BGG IDs and game features).
 *   **Recommender Model:** `artefacts/recommender_light.npz` (The artefact updated in Step 4).
 
-**1. Scrape & Update Master Reviews**
+### 1. Scrape & Update Master Reviews
+
 Collect new reviews from the `spiel-des-jahres.de` Kritikenrundschau and update the master dataset.
 ```sh
 # 1a. Run the spider (requires LLM_API_KEY)
@@ -46,7 +46,8 @@ uv run --extra scraper scrapy runspider src/spiel_des_jahres/review_spider.py
 uv run python -m spiel_des_jahres.update_reviews $(ls -t results/reviews-*.jl | head -n 1)
 ```
 
-**2. Prepare the Annual Data Directory**
+### 2. Prepare the Annual Data Directory
+
 Set up the data and artefacts directories:
 ```sh
 YEAR=$(date +%Y)
@@ -56,7 +57,8 @@ mkdir -p artefacts
 *   **`reviews.csv`**: The candidate pool for the target year. Typically manually filtered from `kritikenrundschau.csv` to include only eligible games for the current cycle.
 *   **`exclude.csv`**: BGG IDs of games to disqualify (e.g., previous winners or ineligible reprints). One BGG ID per line under a `bgg_id` header.
 
-**3. Export Scraper Items (.jl)**
+### 3. Export Scraper Items (.jl)
+
 Convert local reviews and historical awards into "scraper items" (User and Rating objects) and store them in the [board-game-scraper](https://gitlab.com/recommend.games/board-game-scraper) feed directories.
 
 ```sh
@@ -85,7 +87,8 @@ uv run python -m spiel_des_jahres.ratings --item-type rating \
     >> "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
 ```
 
-**4. Retrain the Recommender Model**
+### 4. Retrain the Recommender Model
+
 The exported items in the feed directories must be merged with broader BGG scrapes to update the master dataset, which is then used to train the recommendation engine.
 
 1.  **Merge**: Update the master dataset in `../board-game-data/` by running the following command from the `../board-game-merger/` directory:
@@ -104,13 +107,15 @@ The exported items in the feed directories must be merged with broader BGG scrap
     ```
     This generates a new `recommender_light.npz` artefact directly in this project's `artefacts/` directory.
 
-**5. Train the Kennerspiel Model**
+### 5. Train the Kennerspiel Model
+
 Train the local classifier that identifies "Kennerspiel" candidates.
 ```sh
 uv run python -m spiel_des_jahres.kennerspiel artefacts/kennerspiel.joblib
 ```
 
-**6. Generate Final Rankings**
+### 6. Generate Final Rankings
+
 With the data prepared and the models updated, generate the final rankings.
 ```sh
 uv run python -m spiel_des_jahres.predictions \
@@ -119,7 +124,6 @@ uv run python -m spiel_des_jahres.predictions \
     --kennerspiel-model artefacts/kennerspiel.joblib \
     --output predictions.csv
 ```
-*(Alternative: You can run the `notebooks/SdJ predictions.py` notebook to interactively explore the rankings).*
 
 ## Installation
 
