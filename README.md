@@ -39,38 +39,44 @@ uv run python -m spiel_des_jahres.update_reviews $(ls -t results/reviews-*.jl | 
 **2. Prepare the Annual Data Directory**
 Set up the data directory for the current year:
 ```sh
-export YEAR=$(date +%Y)
+YEAR=$(date +%Y)
 mkdir -p "src/spiel_des_jahres/data/${YEAR}"
 ```
 *   **`reviews.csv`**: The candidate pool for the target year (derived from `kritikenrundschau.csv`).
 *   **`exclude.csv`**: BGG IDs of games to disqualify (e.g., previous winners).
 
 **3. Export Scraper Items (.jl)**
-Convert local reviews and historical awards into "scraper items" (User and Rating objects). These are compatible with the [board-game-scraper](https://gitlab.com/recommend.games/board-game-scraper) format.
+Convert local reviews and historical awards into "scraper items" (User and Rating objects) and store them in the [board-game-scraper](https://gitlab.com/recommend.games/board-game-scraper) feed directories.
 
 ```sh
+# Define metadata and feed paths
+TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%S)
+FEED_DIR="../board-game-scraper/feeds/bgg"
+
 # 3a. Export Jury Member profiles
 uv run python -m spiel_des_jahres.ratings --item-type user \
     --year "${YEAR}" \
     --reviews-file "src/spiel_des_jahres/data/${YEAR}/reviews.csv" \
-    --reviewer-prefix "s_d_j_" > results/jury_items.jl
+    --reviewer-prefix "s_d_j_" \
+    > "${FEED_DIR}/UserItem/${TIMESTAMP}-sdj.jl"
 
 # 3b. Export Jury Member ratings
 uv run python -m spiel_des_jahres.ratings --item-type rating \
     --year "${YEAR}" \
     --reviews-file "src/spiel_des_jahres/data/${YEAR}/reviews.csv" \
-    --reviewer-prefix "s_d_j_" >> results/jury_items.jl
-```
+    --reviewer-prefix "s_d_j_" \
+    > "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
 
 # 3c. Export the Jury (as a whole) historical award ratings
 uv run python -m spiel_des_jahres.ratings --item-type rating \
     --awards-file src/spiel_des_jahres/data/sdj.csv \
-    --awards-user "s_d_j" >> results/jury_items.jl
+    --awards-user "s_d_j" \
+    >> "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
 ```
 
 **4. Retrain the Recommender Model**
-The exported `jury_items.jl` must be merged with broader BGG scrapes and used to train the recommendation engine.
-1.  **Merge**: Use [board-game-merger](https://gitlab.com/recommend.games/board-game-merger) to combine `jury_items.jl` with other scraper results into a unified dataset.
+The exported items in the feed directories must be merged with broader BGG scrapes and used to train the recommendation engine.
+1.  **Merge**: Use [board-game-merger](https://gitlab.com/recommend.games/board-game-merger) to combine the items in `../board-game-scraper/feeds/bgg/` with other scraper results into a unified dataset.
 2.  **Train**: Use [board-game-recommender](https://gitlab.com/recommend.games/board-game-recommender) to retrain the model. This generates a new `recommender_light.npz` artifact.
 3.  **Deploy**: If using the API, ensure the new ratings are deployed to the `recommend.games` server.
 
