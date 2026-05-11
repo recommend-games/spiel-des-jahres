@@ -37,7 +37,11 @@ uv run python -m spiel_des_jahres.update_reviews $(ls -t results/reviews-*.jl | 
 ```
 
 **2. Prepare the Annual Data Directory**
-Set up `src/spiel_des_jahres/data/2026/` (or current year):
+Set up the data directory for the current year:
+```sh
+export YEAR=$(date +%Y)
+mkdir -p "src/spiel_des_jahres/data/${YEAR}"
+```
 *   **`reviews.csv`**: The candidate pool for the target year (derived from `kritikenrundschau.csv`).
 *   **`exclude.csv`**: BGG IDs of games to disqualify (e.g., previous winners).
 
@@ -47,13 +51,16 @@ Convert local reviews and historical awards into "scraper items" (User and Ratin
 ```sh
 # 3a. Export Jury Member profiles
 uv run python -m spiel_des_jahres.ratings --item-type user \
-    --reviews-file src/spiel_des_jahres/data/2026/reviews.csv \
+    --year "${YEAR}" \
+    --reviews-file "src/spiel_des_jahres/data/${YEAR}/reviews.csv" \
     --reviewer-prefix "s_d_j_" > results/jury_items.jl
 
 # 3b. Export Jury Member ratings
 uv run python -m spiel_des_jahres.ratings --item-type rating \
-    --reviews-file src/spiel_des_jahres/data/2026/reviews.csv \
+    --year "${YEAR}" \
+    --reviews-file "src/spiel_des_jahres/data/${YEAR}/reviews.csv" \
     --reviewer-prefix "s_d_j_" >> results/jury_items.jl
+```
 
 # 3c. Export the Jury (as a whole) historical award ratings
 uv run python -m spiel_des_jahres.ratings --item-type rating \
