@@ -37,10 +37,11 @@ uv run python -m spiel_des_jahres.update_reviews $(ls -t results/reviews-*.jl | 
 ```
 
 **2. Prepare the Annual Data Directory**
-Set up the data directory for the current year:
+Set up the data and artefacts directories:
 ```sh
 YEAR=$(date +%Y)
 mkdir -p "src/spiel_des_jahres/data/${YEAR}"
+mkdir -p artefacts
 ```
 *   **`reviews.csv`**: The candidate pool for the target year (derived from `kritikenrundschau.csv`).
 *   **`exclude.csv`**: BGG IDs of games to disqualify (e.g., previous winners).
