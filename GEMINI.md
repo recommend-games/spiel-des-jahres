@@ -49,3 +49,12 @@ When updating reviews, the system matches games against a BGG database. To preve
 - **Exact matching** is only performed for names that are unique in the BGG database.
 - **Fuzzy matching** (via `thefuzz`) requires a threshold of 90 and is also restricted to unique BGG titles.
 - **Ambiguity:** If a name matches multiple BGG IDs, a warning is logged, and the ID must be assigned manually.
+
+## Agent Mandates
+
+To maintain project integrity across all environments and agents:
+
+- **CRITICAL: NEVER undo, revert, or overwrite manual changes made by the user.** Always perform a targeted `read_file` or check the current file state before applying an edit. If an agent's proposed change contradicts existing manual adjustments, the agent must defer to the user's manual state.
+- **Path Conventions:** Respect the established path conventions in this repository (e.g., using `../board-game-data/` rather than `../../`).
+- **Git Safety:** NEVER use force-push (`--force` or `--force-with-lease`) unless explicitly and specifically directed by the user for a particular command. Always perform a thorough `git status` and `git diff` before committing to ensure no unintended changes or reversions are included.
+- **Validation:** Always run `uv run pre-commit` after any modification to ensure structural and stylistic compliance.
