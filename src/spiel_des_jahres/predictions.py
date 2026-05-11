@@ -522,7 +522,7 @@ def _parse_args() -> argparse.Namespace:
         "--recommender-model",
         "-r",
         type=str,
-        default="../../recommend-games-server/data/recommender_light.npz",
+        default="../recommend-games-server/data/recommender_light.npz",
         help="Path to the recommender model artifact.",
     )
     parser.add_argument(

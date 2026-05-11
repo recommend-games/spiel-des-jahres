@@ -23,8 +23,8 @@ Spiel des Jahres predictions
 The full prediction lifecycle involves gathering review data, exporting jury preferences to the recommendation engine, retraining the model, and finally generating rankings.
 
 **Required External Datasets:**
-*   **BGG Games Dataset:** `../../board-game-data/scraped/bgg_GameItem.csv` (Used for matching BGG IDs and game features).
-*   **Recommender Model:** `../../recommend-games-server/data/recommender_light.npz` (The artifact generated after Step 4).
+*   **BGG Games Dataset:** `../board-game-data/scraped/bgg_GameItem.csv` (Used for matching BGG IDs and game features).
+*   **Recommender Model:** `../recommend-games-server/data/recommender_light.npz` (The artifact generated after Step 4).
 
 **1. Scrape & Update Master Reviews**
 Collect new reviews from the `spiel-des-jahres.de` Kritikenrundschau and update the master dataset.
