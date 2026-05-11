@@ -74,7 +74,11 @@ uv run python -m spiel_des_jahres.kennerspiel ./kennerspiel.joblib
 ```
 
 **6. Generate Final Rankings**
-Run `notebooks/SdJ predictions.py` end-to-end. This joins your target year's `reviews.csv` with the updated `recommender_light.npz` and `kennerspiel.joblib` to produce the final `predictions.csv`.
+With the data prepared and the models updated, generate the final rankings.
+```sh
+uv run python -m spiel_des_jahres.predictions --output predictions.csv
+```
+*(Alternative: You can run the `notebooks/SdJ predictions.py` notebook to interactively explore the rankings).*
 
 ## Installation
 

@@ -5,7 +5,7 @@ This project provides tools and logic for predicting the winners of the **Spiel 
 ## Project Overview
 
 - **Purpose:** Automate the collection of board game reviews and generate data-driven predictions for the Spiel des Jahres awards.
-- **Main Technologies:** 
+- **Main Technologies:**
     - **Python** (managed by `uv`)
     - **Polars:** Primary library for high-performance data manipulation.
     - **Scrapy:** Used for crawling review articles from `spiel-des-jahres.de`.
