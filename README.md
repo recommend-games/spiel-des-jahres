@@ -24,7 +24,7 @@ The full prediction lifecycle involves gathering review data, exporting jury pre
 
 **Required External Datasets:**
 *   **BGG Games Dataset:** `../board-game-data/scraped/bgg_GameItem.csv` (Used for matching BGG IDs and game features).
-*   **Recommender Model:** `../recommend-games-server/data/recommender_light.npz` (The artifact generated after Step 4).
+*   **Recommender Model:** `artifacts/recommender_light.npz` (The artifact updated in Step 4).
 
 **1. Scrape & Update Master Reviews**
 Collect new reviews from the `spiel-des-jahres.de` Kritikenrundschau and update the master dataset.
@@ -86,19 +86,27 @@ The exported items in the feed directories must be merged with broader BGG scrap
         --clean-results \
         --overwrite
     ```
-2.  **Train**: Use [board-game-recommender](https://gitlab.com/recommend.games/board-game-recommender) to retrain the model. This generates a new `recommender_light.npz` artifact.
-3.  **Deploy**: If using the API, ensure the new ratings are deployed to the `recommend.games` server.
+2.  **Train**: Retrain the BGG recommender model by running the following command from the `../recommend-games-server/` directory:
+    ```sh
+    cd ../recommend-games-server/
+    pipenv run pynt "trainbgg[out_path_light=$(pwd)/../spiel-des-jahres/artifacts/recommender_light.npz]"
+    ```
+    This generates a new `recommender_light.npz` artifact directly in this project's `artifacts/` directory.
 
 **5. Train the Kennerspiel Model**
 Train the local classifier that identifies "Kennerspiel" candidates.
 ```sh
-uv run python -m spiel_des_jahres.kennerspiel ./kennerspiel.joblib
+uv run python -m spiel_des_jahres.kennerspiel artifacts/kennerspiel.joblib
 ```
 
 **6. Generate Final Rankings**
 With the data prepared and the models updated, generate the final rankings.
 ```sh
-uv run python -m spiel_des_jahres.predictions --output predictions.csv
+uv run python -m spiel_des_jahres.predictions \
+    --year "${YEAR}" \
+    --recommender-model artifacts/recommender_light.npz \
+    --kennerspiel-model artifacts/kennerspiel.joblib \
+    --output predictions.csv
 ```
 *(Alternative: You can run the `notebooks/SdJ predictions.py` notebook to interactively explore the rankings).*
 
