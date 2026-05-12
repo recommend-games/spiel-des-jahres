@@ -9,8 +9,9 @@ Shared context for AI coding assistants working in this repository.
 | Setup | `uv sync --all-extras` |
 | Tests | `uv run pytest` |
 | Lint + format | `uv run pre-commit run --all-files` |
+| Type check | `uv run mypy .` |
 | Run spider | `uv run --extra scraper scrapy runspider src/spiel_des_jahres/review_spider.py` |
-| Update reviews CSV | `uv run python -m spiel_des_jahres.update_reviews $(ls -t results/reviews-*.jl \| head -n 1)` |
+| Update reviews CSV | `uv run python -m spiel_des_jahres.update_reviews $(ls -t results/reviews-*.jl \| head -n 1) --bgg-games ../board-game-data/scraped/bgg_GameItem.csv` |
 | Serve docs | `uv run mkdocs serve` |
 
 100% test coverage is enforced (`fail_under = 100` in `pyproject.toml`).
@@ -27,13 +28,21 @@ The project predicts Spiel des Jahres award winners by combining scraped jury re
 
 3. **Update** (`update_reviews.py`): Merges `.jl` output into `src/spiel_des_jahres/data/kritikenrundschau.csv`. Matches game names to BGG IDs via exact (case-insensitive) then fuzzy matching (`thefuzz`, threshold 90). Ambiguous names are logged as warnings and require manual assignment.
 
-4. **Classify** (`kennerspiel/`): An sklearn `LogisticRegressionCV` pipeline classifies games as Spiel or Kennerspiel. Trained on historical SdJ/KSdJ award data from `sdj.csv`/`ksdj.csv` plus game features from the sibling `board-game-data` repo. The trained model is saved as `kennerspiel.joblib`.
+4. **Export** (`ratings.py`): Exports jury member profiles and ratings as scraper items (JSON Lines) into the `board-game-scraper` feed directories. Supports `--item-type user` and `--item-type rating`; can source from a per-year `reviews.csv` or from the historical award CSVs (`sdj.csv`, etc.).
 
-5. **Predict** (`predictions.py`): `sdj_predictions()` is the main entry point. Two modes:
+5. **Classify** (`kennerspiel/`): An sklearn `LogisticRegressionCV` pipeline classifies games as Spiel or Kennerspiel. Trained on historical SdJ/KSdJ award data from `sdj.csv`/`ksdj.csv` plus game features from the sibling `board-game-data` repo. The trained model is saved to `artefacts/kennerspiel.joblib`.
+
+6. **Predict** (`predictions.py`): `sdj_predictions()` is the main entry point. Two modes:
    - `fetch_from_api=True`: fetches recommendations live from the Recommend.Games API for the main jury account (`s_d_j`) and each jury member (`s_d_j_<member>`).
    - `fetch_from_api=False`: requires a `kennerspiel_model` (joblib) and `recommender_model` (`.npz`) path; runs locally against `board-game-data/scraped/bgg_GameItem.csv`.
 
-   Outputs a Polars LazyFrame with `sdj_score` and `sdj_rank` columns grouped by `kennerspiel`.
+   Outputs a Polars LazyFrame with `sdj_score` and `sdj_rank` columns grouped by `kennerspiel`. Also callable as a CLI:
+   ```
+   uv run python -m spiel_des_jahres.predictions --year YEAR \
+       --recommender-model artefacts/recommender_light.npz \
+       --kennerspiel-model artefacts/kennerspiel.joblib \
+       --output predictions.csv
+   ```
 
 **Data files** (`src/spiel_des_jahres/data/`):
 - `sdj.csv`, `ksdj.csv`, `kindersdj.csv` — historical award winners/nominees
@@ -41,9 +50,13 @@ The project predicts Spiel des Jahres award winners by combining scraped jury re
 - `<year>/reviews.csv` — games reviewed by the jury in a given year, with per-jury-member ratings
 - `<year>/exclude.csv` — games explicitly excluded from that year's predictions
 
-**External dependencies** (sibling directories assumed at `../../`):
+**Artefacts** (`artefacts/`): model outputs written here — `kennerspiel.joblib` and `recommender_light.npz`.
+
+**External dependencies** (sibling directories assumed at `../`):
 - `board-game-data/scraped/bgg_GameItem.csv` — BGG game database for feature extraction and ID matching
-- `recommend-games-server/data/recommender_light.npz` — pre-trained recommender model (used in local prediction mode)
+- `board-game-scraper/feeds/bgg/` — feed directories where `ratings.py` writes exported items
+- `board-game-merger/` — merges scraper feeds into the master dataset (run separately before retraining)
+- `recommend-games-server/` — recommender training and deployment; exports `recommender_light.npz`
 
 **Notebooks** (`notebooks/`): Managed with `jupytext` (`.py` percent format synced with `.ipynb`). The main predictions notebook calls `sdj_predictions()` directly.
 
