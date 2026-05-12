@@ -85,6 +85,9 @@ results/
 # Jupyter
 *.ipynb
 
+# Claude
+.claude/
+
 # Misc
 .~*
 artefacts/
