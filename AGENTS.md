@@ -28,7 +28,7 @@ The project predicts Spiel des Jahres award winners by combining scraped jury re
 
 3. **Update** (`update_reviews.py`): Merges `.jl` output into `src/spiel_des_jahres/data/kritikenrundschau.csv`. Matches game names to BGG IDs via exact (case-insensitive) then fuzzy matching (`thefuzz`, threshold 90). Ambiguous names are logged as warnings and require manual assignment.
 
-4. **Export** (`ratings.py`): Exports jury member profiles and ratings as scraper items (JSON Lines) into the `board-game-scraper` feed directories. Supports `--item-type user` and `--item-type rating`; can source from a per-year `reviews.csv` or from the historical award CSVs (`sdj.csv`, etc.).
+4. **Export** (`ratings.py`): Exports jury member profiles and ratings as scraper items (JSON Lines) into the `board-game-scraper` feed directories. Supports `--item-type user` and `--item-type rating`; can source from `kritikenrundschau.csv` (`--kritikenrundschau-file`), a per-year `reviews.csv` (`--reviews-file`), or the historical award CSVs (`sdj.csv`, etc.).
 
 5. **Classify** (`kennerspiel/`): An sklearn `LogisticRegressionCV` pipeline classifies games as Spiel or Kennerspiel. Trained on historical SdJ/KSdJ award data from `sdj.csv`/`ksdj.csv` plus game features from the sibling `board-game-data` repo. The trained model is saved to `artefacts/kennerspiel.joblib`.
 

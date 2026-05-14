@@ -70,19 +70,30 @@ Convert local reviews and historical awards into "scraper items" (User and Ratin
 TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%S)
 FEED_DIR="../board-game-scraper/feeds/bgg"
 
-# 3a. Export Jury Member profiles
+# 3a. Export Jury Member profiles (kritikenrundschau first, then per-year reviews)
+uv run python -m spiel_des_jahres.ratings --item-type user \
+    --kritikenrundschau-file src/spiel_des_jahres/data/kritikenrundschau.csv \
+    --reviewer-prefix "s_d_j_" \
+    > "${FEED_DIR}/UserItem/${TIMESTAMP}-sdj.jl"
 uv run python -m spiel_des_jahres.ratings --item-type user \
     --year "${YEAR}" \
     --reviews-file "src/spiel_des_jahres/data/${YEAR}/reviews.csv" \
     --reviewer-prefix "s_d_j_" \
-    > "${FEED_DIR}/UserItem/${TIMESTAMP}-sdj.jl"
+    >> "${FEED_DIR}/UserItem/${TIMESTAMP}-sdj.jl"
 
-# 3b. Export Jury Member ratings
+# 3b. Export Jury Member ratings (kritikenrundschau first, then per-year reviews)
+# Run order matters: both use scraped_at=now, so the later run's timestamps are
+# newer; the board-game-merger keeps the most recent item per (user, game) pair,
+# giving the per-year reviews.csv values precedence over the historical ones.
+uv run python -m spiel_des_jahres.ratings --item-type rating \
+    --kritikenrundschau-file src/spiel_des_jahres/data/kritikenrundschau.csv \
+    --reviewer-prefix "s_d_j_" \
+    > "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
 uv run python -m spiel_des_jahres.ratings --item-type rating \
     --year "${YEAR}" \
     --reviews-file "src/spiel_des_jahres/data/${YEAR}/reviews.csv" \
     --reviewer-prefix "s_d_j_" \
-    > "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
+    >> "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
 
 # 3c. Export the Jury (as a whole) historical award ratings
 uv run python -m spiel_des_jahres.ratings --item-type rating \
