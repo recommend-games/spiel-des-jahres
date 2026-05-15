@@ -255,7 +255,7 @@ def include_exclude_jury_members(
     ) as curr_reviews_path:
         LOGGER.info("Reading current reviews from <%s>", curr_reviews_path)
         curr_reviews = pl.read_csv(curr_reviews_path)
-    include = curr_reviews.remove(pl.col("bgg_id").is_in(exclude))["bgg_id"]
+    include = curr_reviews.remove(pl.col("bgg_id").is_in(exclude.to_list()))["bgg_id"]
     jury_members = curr_reviews.select(pl.exclude("bgg_id", "name")).columns
     del curr_reviews
 
@@ -365,9 +365,10 @@ def load_candidates(
         pl.scan_csv(games_path, infer_schema_length=None)
         .filter(pl.col("bgg_id").is_in(recommender_model.known_games))
         .filter(
-            pl.col("year").is_between(year - 1, year) | pl.col("bgg_id").is_in(include),
+            pl.col("year").is_between(year - 1, year)
+            | pl.col("bgg_id").is_in(include.to_list()),
         )
-        .remove(pl.col("bgg_id").is_in(exclude))
+        .remove(pl.col("bgg_id").is_in(exclude.to_list()))
         .select(*features)
         .collect()
     )
