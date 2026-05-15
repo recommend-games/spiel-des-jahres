@@ -209,7 +209,9 @@ def include_exclude_jury_members(
     ) as exclude_path:
         LOGGER.info("Reading exclude from <%s>", exclude_path)
         exclude_explicit = (
-            pl.scan_csv(exclude_path).select("bgg_id").collect()["bgg_id"]
+            pl.scan_csv(exclude_path, schema_overrides={"bgg_id": pl.Int64})
+            .select("bgg_id")
+            .collect()["bgg_id"]
         )
 
     with importlib.resources.as_file(
