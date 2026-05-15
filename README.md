@@ -153,7 +153,7 @@ uv run python -m spiel_des_jahres.predictions \
     --year "${YEAR}" \
     --recommender-model artefacts/recommender_light.npz \
     --kennerspiel-model artefacts/kennerspiel.joblib \
-    --output predictions.csv
+    --output "src/spiel_des_jahres/data/${YEAR}/predictions.csv"
 ```
 
 ## Installation

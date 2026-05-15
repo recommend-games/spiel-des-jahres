@@ -585,7 +585,7 @@ def main() -> None:
 
     output_path = Path(args.output).resolve()
     LOGGER.info("Saving predictions to <%s>", output_path)
-    predictions.write_csv(output_path, float_precision=5)
+    predictions.write_csv(output_path, float_precision=3)
     LOGGER.info("Done.")
 
 
