@@ -16,7 +16,145 @@
 
 ---
 
-Spiel des Jahres predictions
+## Generating Annual Predictions
+
+The full prediction lifecycle involves gathering review data, exporting jury preferences to the recommendation engine, retraining the model, and finally generating rankings.
+
+### Project Structure
+
+This project assumes a sibling directory structure for its dependencies:
+* `board-game-data/`: Master datasets.
+* `board-game-scraper/`: Scraper feeds and local `.jl` items.
+* `board-game-merger/`: Data merging tools.
+* `recommend-games-server/`: Recommender training and deployment.
+* `spiel-des-jahres/`: This repository.
+
+### Required External Datasets
+
+* **[BGG Games Dataset](https://gitlab.com/recommend.games/board-game-data):** `../board-game-data/scraped/bgg_GameItem.csv` (Used for matching BGG IDs and game features).
+
+### 1. Scrape & Update Master Reviews
+
+Collect new reviews from the `spiel-des-jahres.de` Kritikenrundschau and update the master dataset.
+
+```sh
+# 1a. Run the spider (requires LLM_API_KEY)
+mkdir -p results
+uv run --extra scraper scrapy runspider src/spiel_des_jahres/review_spider.py
+
+# 1b. Update master kritikenrundschau.csv
+uv run python -m spiel_des_jahres.update_reviews \
+    $(ls -t results/reviews-*.jl | head -n 1) \
+    --bgg-games ../board-game-data/scraped/bgg_GameItem.csv
+```
+
+### 2. Prepare the Annual Data Directory
+
+Set up the data and artefacts directories:
+
+```sh
+YEAR=$(date +%Y)
+mkdir -p "src/spiel_des_jahres/data/${YEAR}"
+mkdir -p artefacts
+```
+
+* **`reviews.csv`**: The candidate pool for the target year. Typically manually filtered from `kritikenrundschau.csv` to include only eligible games for the current cycle.
+* **`exclude.csv`**: BGG IDs of games to disqualify (e.g., previous winners or ineligible reprints). One BGG ID per line under a `bgg_id` header.
+
+### 3. Export Scraper Items (.jl)
+
+Convert local reviews and historical awards into "scraper items" (User and Rating objects) and store them in the [board-game-scraper](https://gitlab.com/recommend.games/board-game-scraper) feed directories.
+
+```sh
+# Define metadata and feed paths
+TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%S)
+FEED_DIR="../board-game-scraper/feeds/bgg"
+
+# 3a. Export Jury Member profiles (kritikenrundschau first, then per-year reviews)
+uv run python -m spiel_des_jahres.ratings --item-type user \
+    --kritikenrundschau-file src/spiel_des_jahres/data/kritikenrundschau.csv \
+    --reviewer-prefix "s_d_j_" \
+    > "${FEED_DIR}/UserItem/${TIMESTAMP}-sdj.jl"
+uv run python -m spiel_des_jahres.ratings --item-type user \
+    --year "${YEAR}" \
+    --reviews-file "src/spiel_des_jahres/data/${YEAR}/reviews.csv" \
+    --reviewer-prefix "s_d_j_" \
+    >> "${FEED_DIR}/UserItem/${TIMESTAMP}-sdj.jl"
+
+# 3b. Export Jury Member ratings (kritikenrundschau first, then per-year reviews)
+# Run order matters: both use scraped_at=now, so the later run's timestamps are
+# newer; the board-game-merger keeps the most recent item per (user, game) pair,
+# giving the per-year reviews.csv values precedence over the historical ones.
+uv run python -m spiel_des_jahres.ratings --item-type rating \
+    --kritikenrundschau-file src/spiel_des_jahres/data/kritikenrundschau.csv \
+    --reviewer-prefix "s_d_j_" \
+    > "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
+uv run python -m spiel_des_jahres.ratings --item-type rating \
+    --year "${YEAR}" \
+    --reviews-file "src/spiel_des_jahres/data/${YEAR}/reviews.csv" \
+    --reviewer-prefix "s_d_j_" \
+    >> "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
+
+# 3c. Export the Jury (as a whole) historical award ratings
+uv run python -m spiel_des_jahres.ratings --item-type rating \
+    --awards-file src/spiel_des_jahres/data/sdj.csv \
+    --awards-user "s_d_j" \
+    >> "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
+uv run python -m spiel_des_jahres.ratings --item-type rating \
+    --awards-file src/spiel_des_jahres/data/kindersdj.csv \
+    --awards-user "s_d_j" \
+    >> "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
+uv run python -m spiel_des_jahres.ratings --item-type rating \
+    --awards-file src/spiel_des_jahres/data/ksdj.csv \
+    --awards-user "s_d_j" \
+    >> "${FEED_DIR}/RatingItem/${TIMESTAMP}-sdj.jl"
+```
+
+### 4. Retrain the Recommender Model
+The exported items in the feed directories must be merged with broader BGG scrapes to update the master dataset and the recommendation engine.
+
+1. **Merge**: Update the master dataset in `../board-game-data/` by running the following command from the `../board-game-merger/` directory:
+    ```sh
+    cd ../board-game-merger/
+    poetry run python -m board_game_merger all \
+        --progress-bar \
+        --verbose \
+        --clean-results \
+        --overwrite
+    ```
+
+2. **Process, Train & Sync**: Run the prediction lifecycle tasks from the `../recommend-games-server/` directory. This updates CSVs, retrains the model, snapshots rankings, and pushes changes to the master repository:
+    ```sh
+    cd ../recommend-games-server/
+    pipenv run pynt gitprepare makecsvs referencecsvs link updatecount gitupdate
+    pipenv run pynt "trainbgg[out_path_light=$(pwd)/../spiel-des-jahres/artefacts/recommender_light.npz]"
+    ```
+    * `gitprepare`: Ensures the data repository is clean and up-to-date.
+    * `makecsvs` / `referencecsvs`: Updates CSV versions of the master data and foreign references.
+    * `link`: Updates game linkages (`links.json`).
+    * `updatecount`: Updates the line and file counts in `COUNT.md`.
+    * `gitupdate`: Commits and pushes the updated data to the master repository.
+    * `trainbgg`: Retrains the recommender model and exports the light artefact.
+
+### 5. Train the Kennerspiel Model
+
+Train the local classifier that identifies "Kennerspiel" candidates.
+
+```sh
+uv run python -m spiel_des_jahres.kennerspiel artefacts/kennerspiel.joblib
+```
+
+### 6. Generate Final Rankings
+
+With the data prepared and the models updated, generate the final rankings.
+
+```sh
+uv run python -m spiel_des_jahres.predictions \
+    --year "${YEAR}" \
+    --recommender-model artefacts/recommender_light.npz \
+    --kennerspiel-model artefacts/kennerspiel.joblib \
+    --output "src/spiel_des_jahres/data/${YEAR}/predictions.csv"
+```
 
 ## Installation
 

@@ -42,7 +42,15 @@ def _parse_reviews_jl(
                 continue
 
             for review in article_reviews:
-                yield {**article_data, **review}
+                if not isinstance(review, dict):
+                    continue
+                yield {
+                    "url": article_data["url"],
+                    "date_published": article_data["date_published"],
+                    "game_title": review.get("game_title"),
+                    "reviewer_id": review.get("reviewer_id"),
+                    "rating": review.get("rating"),
+                }
 
 
 def reviews_jl_to_polars(
@@ -50,13 +58,17 @@ def reviews_jl_to_polars(
 ) -> pl.DataFrame:
     import polars as pl  # noqa: PLC0415
 
-    reviews = pl.LazyFrame(_parse_reviews_jl(file_path)).select(
-        pl.lit(None).alias("bgg_id"),
-        pl.col("game_title").alias("name"),
-        "url",
-        "date_published",
-        "reviewer_id",
-        "rating",
+    reviews = (
+        pl.LazyFrame(_parse_reviews_jl(file_path))
+        .select(
+            pl.lit(None).alias("bgg_id"),
+            pl.col("game_title").alias("name"),
+            "url",
+            "date_published",
+            "reviewer_id",
+            "rating",
+        )
+        .unique(subset=["url", "name", "reviewer_id"], keep="first")
     )
 
     reviewers = (
@@ -147,6 +159,52 @@ def reviews_csv_to_ratings(
                     )
 
 
+def kritikenrundschau_csv_to_ratings(
+    file_path: str | Path,
+    *,
+    updated_at: datetime | None = None,
+    reviewer_prefix: str = "",
+) -> Iterable[Rating]:
+    file_path = Path(file_path).resolve()
+    LOGGER.info("Reading kritikenrundschau from <%s>", file_path)
+
+    now = datetime.now(timezone.utc)
+    updated_at = updated_at or now
+
+    with file_path.open("r", newline="") as file:
+        reader = csv.DictReader(file)
+
+        for row in reader:
+            raw_id = row.pop("bgg_id")
+            if not raw_id:
+                LOGGER.debug("Skipping row with no bgg_id: %s", row.get("name"))
+                continue
+            bgg_id = int(raw_id)
+            name = row.pop("name", None)
+            _ = row.pop("url", None)
+
+            try:
+                date_published = datetime.fromisoformat(row.pop("date_published", None))
+            except Exception:
+                date_published = None
+
+            LOGGER.debug(
+                "Processing kritikenrundschau for <%s> (BGG ID %d)",
+                name,
+                bgg_id,
+            )
+
+            for reviewer, rating in row.items():
+                if rating:
+                    yield Rating(
+                        bgg_id=bgg_id,
+                        bgg_user_name=f"{reviewer_prefix}{reviewer}",
+                        bgg_user_rating=float(rating),
+                        updated_at=date_published or updated_at,
+                        scraped_at=now,
+                    )
+
+
 def awards_csv_to_ratings(
     file_path: str | Path,
     *,
@@ -212,6 +270,12 @@ def arg_parse() -> argparse.Namespace:
         help="Year of the reviews",
     )
     parser.add_argument(
+        "--kritikenrundschau-file",
+        "-k",
+        type=str,
+        help="Path to kritikenrundschau.csv; run before --reviews-file so reviews win",
+    )
+    parser.add_argument(
         "--awards-file",
         "-a",
         type=str,
@@ -241,13 +305,33 @@ def main() -> None:
         stream=sys.stderr,
     )
 
+    updated_at = datetime(args.year, 1, 1, tzinfo=timezone.utc) if args.year else None
+
+    kr_users = (
+        reviews_csv_to_users(
+            file_path=args.kritikenrundschau_file,
+            reviewer_prefix=args.reviewer_prefix or "",
+            updated_at=updated_at,
+        )
+        if args.item_type == "user" and args.kritikenrundschau_file
+        else ()
+    )
+
+    kr_ratings = (
+        kritikenrundschau_csv_to_ratings(
+            file_path=args.kritikenrundschau_file,
+            reviewer_prefix=args.reviewer_prefix or "",
+            updated_at=updated_at,
+        )
+        if args.item_type == "rating" and args.kritikenrundschau_file
+        else ()
+    )
+
     reviews_users = (
         reviews_csv_to_users(
             file_path=args.reviews_file,
             reviewer_prefix=args.reviewer_prefix or "",
-            updated_at=datetime(args.year, 1, 1, tzinfo=timezone.utc)
-            if args.year
-            else None,
+            updated_at=updated_at,
         )
         if args.item_type == "user" and args.reviews_file
         else ()
@@ -257,9 +341,7 @@ def main() -> None:
         reviews_csv_to_ratings(
             file_path=args.reviews_file,
             reviewer_prefix=args.reviewer_prefix or "",
-            updated_at=datetime(args.year, 1, 1, tzinfo=timezone.utc)
-            if args.year
-            else None,
+            updated_at=updated_at,
         )
         if args.item_type == "rating" and args.reviews_file
         else ()
@@ -275,7 +357,13 @@ def main() -> None:
         else ()
     )
 
-    for obj in itertools.chain(reviews_users, reviews_ratings, awards_ratings):
+    for obj in itertools.chain(
+        kr_users,
+        kr_ratings,
+        reviews_users,
+        reviews_ratings,
+        awards_ratings,
+    ):
         assert isinstance(obj, User | Rating), f"Invalid item type: {type(obj)}"
         obj_dict = dataclasses.asdict(obj)
         obj_str = json.dumps(obj_dict, default=json_datetime)

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import argparse
 import importlib.resources
 import logging
+import sys
 from copy import deepcopy
 from datetime import date
 from itertools import chain, islice
@@ -207,7 +209,9 @@ def include_exclude_jury_members(
     ) as exclude_path:
         LOGGER.info("Reading exclude from <%s>", exclude_path)
         exclude_explicit = (
-            pl.scan_csv(exclude_path).select("bgg_id").collect()["bgg_id"]
+            pl.scan_csv(exclude_path, schema_overrides={"bgg_id": pl.Int64})
+            .select("bgg_id")
+            .collect()["bgg_id"]
         )
 
     with importlib.resources.as_file(
@@ -251,7 +255,7 @@ def include_exclude_jury_members(
     ) as curr_reviews_path:
         LOGGER.info("Reading current reviews from <%s>", curr_reviews_path)
         curr_reviews = pl.read_csv(curr_reviews_path)
-    include = curr_reviews.remove(pl.col("bgg_id").is_in(exclude))["bgg_id"]
+    include = curr_reviews.remove(pl.col("bgg_id").is_in(exclude.to_list()))["bgg_id"]
     jury_members = curr_reviews.select(pl.exclude("bgg_id", "name")).columns
     del curr_reviews
 
@@ -361,9 +365,10 @@ def load_candidates(
         pl.scan_csv(games_path, infer_schema_length=None)
         .filter(pl.col("bgg_id").is_in(recommender_model.known_games))
         .filter(
-            pl.col("year").is_between(year - 1, year) | pl.col("bgg_id").is_in(include),
+            pl.col("year").is_between(year - 1, year)
+            | pl.col("bgg_id").is_in(include.to_list()),
         )
-        .remove(pl.col("bgg_id").is_in(exclude))
+        .remove(pl.col("bgg_id").is_in(exclude.to_list()))
         .select(*features)
         .collect()
     )
@@ -482,3 +487,107 @@ def sdj_predictions(
         )
         .sort("kennerspiel", "sdj_rank")
     )
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Generate Spiel des Jahres predictions.",
+    )
+    parser.add_argument(
+        "--year",
+        "-y",
+        type=int,
+        default=date.today().year,
+        help="Target year for predictions.",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        default="predictions.csv",
+        help="Path to save the predictions CSV.",
+    )
+    parser.add_argument(
+        "--games-path",
+        "-g",
+        type=str,
+        default=SCRAPED_DIR / "bgg_GameItem.csv",
+        help="Path to the games CSV file.",
+    )
+    parser.add_argument(
+        "--kennerspiel-model",
+        "-k",
+        type=str,
+        default="kennerspiel.joblib",
+        help="Path to the trained Kennerspiel model.",
+    )
+    parser.add_argument(
+        "--recommender-model",
+        "-r",
+        type=str,
+        default="../recommend-games-server/data/recommender_light.npz",
+        help="Path to the recommender model artefact.",
+    )
+    parser.add_argument(
+        "--main-weight",
+        "-mw",
+        type=float,
+        help=(
+            "Weight for the main 's_d_j' user metrics. "
+            "Defaults to the number of jury members."
+        ),
+    )
+    parser.add_argument(
+        "--jury-weight",
+        "-jw",
+        type=float,
+        default=1.0,
+        help="Weight for individual jury member metrics.",
+    )
+    parser.add_argument(
+        "--fetch-api",
+        action="store_true",
+        help="Fetch candidates from the API instead of loading locally.",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = _parse_args()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        stream=sys.stdout,
+    )
+
+    LOGGER.info("Generating predictions for %d", args.year)
+
+    # Determine jury members to set default main_weight if not provided
+    _, _, jury_members = include_exclude_jury_members(args.year)
+    main_weight = (
+        args.main_weight
+        if args.main_weight is not None
+        else len(jury_members) * args.jury_weight
+    )
+    LOGGER.info("Using main_weight: %.1f", main_weight)
+
+    predictions = sdj_predictions(
+        year=args.year,
+        main_user_weights={"rec_standard": main_weight},
+        jury_member_weights={"rec_standard": args.jury_weight},
+        fetch_from_api=args.fetch_api,
+        games_path=args.games_path,
+        kennerspiel_model=args.kennerspiel_model,
+        recommender_model=args.recommender_model,
+    ).collect()
+
+    LOGGER.info("Generated %d predictions", len(predictions))
+
+    output_path = Path(args.output).resolve()
+    LOGGER.info("Saving predictions to <%s>", output_path)
+    predictions.write_csv(output_path, float_precision=3)
+    LOGGER.info("Done.")
+
+
+if __name__ == "__main__":
+    main()

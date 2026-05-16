@@ -85,5 +85,10 @@ results/
 # Jupyter
 *.ipynb
 
+# Claude
+.claude/
+
 # Misc
 .~*
+artefacts/
+predictions.csv

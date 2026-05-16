@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
@@ -15,24 +16,36 @@ class SpielReviewSpider(SitemapSpider):
     name = "spiel_des_jahres"
     allowed_domains = ("spiel-des-jahres.de",)
 
-    sitemap_urls = ("https://www.spiel-des-jahres.de/robots.txt",)
+    sitemap_urls = ("https://www.spiel-des-jahres.de/sitemap_index.xml",)
     sitemap_rules = ((r"/kritikenrundschau-", "parse_review"),)
 
     custom_settings = {  # noqa: RUF012
-        "DOWNLOAD_DELAY": 0.25,
-        "CONCURRENT_REQUESTS_PER_DOMAIN": 4,
-        "FEED_EXPORT_BATCH_ITEM_COUNT": 10_000,
+        "USER_AGENT": os.getenv("SCRAPER_USER_AGENT"),
+        "DOWNLOAD_DELAY": float(os.getenv("SCRAPER_DOWNLOAD_DELAY") or 1.0),
+        "CONCURRENT_REQUESTS_PER_DOMAIN": int(
+            os.getenv("SCRAPER_CONCURRENT_REQUESTS") or 4,
+        ),
+        "FEED_EXPORT_BATCH_ITEM_COUNT": int(
+            os.getenv("SCRAPER_EXPORT_BATCH_ITEM_COUNT") or 10_000,
+        ),
         "FEEDS": {
-            "results/reviews-%(time)s-%(batch_id)05d.jl": {
+            os.getenv("SCRAPER_FEED_URI")
+            or "results/reviews-%(time)s-%(batch_id)05d.jl": {
                 "format": "jsonlines",
                 "overwrite": False,
                 "store_empty": False,
             },
         },
-        "JOBDIR": ".jobs",
+        "JOBDIR": os.getenv("SCRAPER_JOBDIR") or ".jobs",
         "ITEM_PIPELINES": {
             "spiel_des_jahres.llm_pipeline.LLMExtractionPipeline": 500,
         },
+        # LLM Pipeline Settings
+        "LLM_MODEL": os.getenv("LLM_MODEL") or None,
+        "LLM_API_KEY": os.getenv("LLM_API_KEY"),
+        "LLM_API_BASE_URL": os.getenv("LLM_API_BASE_URL") or None,
+        "LLM_TEMPERATURE": os.getenv("LLM_TEMPERATURE") or None,
+        "LLM_MAX_OUTPUT_TOKENS": os.getenv("LLM_MAX_OUTPUT_TOKENS") or None,
     }
 
     def parse_review(self, response: Response) -> dict[str, Any] | Request | None:
