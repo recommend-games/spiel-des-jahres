@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Include all package files in PyPI sdist
+
 ## [0.5.0] - 2026-05-17
 
 ### Added
