@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Spiel des Jahres 2026 nominations and recommendations
+
 ## [0.5.1] - 2026-05-17
 
 ### Fixed
