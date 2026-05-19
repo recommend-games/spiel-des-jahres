@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-19
+
 ### Added
 
 - Spiel des Jahres 2026 nominations and recommendations
@@ -79,7 +81,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Kennerspiel model
 
-[Unreleased]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.5.1...master
+[Unreleased]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.6.0...master
+[0.6.0]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.5.1...0.6.0
 [0.5.1]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.5.0...0.5.1
 [0.5.0]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.4.0...0.5.0
 [0.4.0]: https://gitlab.com/recommend.games/spiel-des-jahres/compare/0.3.1...0.4.0
