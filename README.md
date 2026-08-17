@@ -218,6 +218,40 @@ Or if you want e.g. want to run all checks manually for all files:
 pre-commit run --all-files
 ```
 
+### Releasing manually
+
+If you'd rather not use GitHub Actions or the `gh` CLI, you can cut a release entirely from the command line:
+
+```sh
+# 1. Bump version (patch|minor|major|alpha|beta|rc, or explicit e.g. 1.2.3)
+uv version --bump patch
+VERSION=$(uv version --short)
+
+# 2. Update changelog
+uv run kacl-cli release "$VERSION" --modify --auto-link
+
+# 3. Commit the version bump
+git add CHANGELOG.md pyproject.toml uv.lock
+git commit -m "Release $VERSION"
+
+# 4. Tag and push (uses whatever remote `main` actually tracks)
+git tag "$VERSION"
+REMOTE=$(git config branch.main.remote)
+git push "$REMOTE" main
+git push "$REMOTE" "$VERSION"
+
+# 5. Build
+uv build
+
+# 6. Publish to PyPI (needs a token, e.g. via PYPI_TOKEN env var or ~/.pypirc)
+uv publish --token "$PYPI_TOKEN"
+
+# 7. Deploy docs to GitHub Pages
+uv run mkdocs gh-deploy --force
+```
+
+Note that no GitHub Release object gets created this way — only the PyPI package and docs are published. Steps 4 and 7 still use plain `git push` (not the GitHub API), so they work without `gh`.
+
 ---
 
 This project was generated using the [wolt-python-package-cookiecutter](https://github.com/woltapp/wolt-python-package-cookiecutter) template.
